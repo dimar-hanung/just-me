@@ -2,6 +2,9 @@
   "name": "@just-me/desktop",
   "version": "0.1.0",
   "private": true,
+  "description": "Just Me personal todo desktop app",
+  "author": "Dimar Hanung <dimarhanung@ecampus.ut.ac.id>",
+  "homepage": "https://github.com/dimar-hanung/just-me",
   "main": "dist/main.js",
   "type": "module",
   "scripts": {
@@ -35,7 +38,10 @@
     "extraResources": [],
     "linux": {
       "target": ["deb", "AppImage"],
-      "category": "Office"
+      "category": "Office",
+      "executableName": "just-me",
+      "artifactName": "JustMe-${version}-${arch}.${ext}",
+      "maintainer": "Dimar Hanung <dimarhanung@ecampus.ut.ac.id>"
     }
   }
 }
