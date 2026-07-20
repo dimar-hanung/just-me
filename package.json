@@ -8,7 +8,10 @@
     "dev:desktop": "pnpm --filter @just-me/desktop dev",
     "dev:mcp": "pnpm --filter @just-me/mcp dev",
     "build": "pnpm --filter @just-me/core build && pnpm --filter @just-me/api build && pnpm --filter @just-me/web build && pnpm --filter @just-me/mcp build",
-    "build:desktop": "pnpm --filter @just-me/desktop build"
+    "build:desktop": "pnpm --filter @just-me/desktop build",
+    "build:desktop:linux": "pnpm --filter @just-me/desktop build:linux",
+    "build:desktop:win": "pnpm --filter @just-me/desktop build:win",
+    "build:desktop:all": "pnpm --filter @just-me/desktop build:all"
   },
   "engines": {
     "node": ">=20"

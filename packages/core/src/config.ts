@@ -4,6 +4,13 @@ import { dirname, join } from "node:path";
 import { AppConfigSchema, type AppConfig } from "./types.js";
 
 export function getConfigDir(): string {
+  if (process.env.JUST_ME_CONFIG_DIR) {
+    return process.env.JUST_ME_CONFIG_DIR;
+  }
+  if (process.platform === "win32") {
+    const appData = process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
+    return join(appData, "just-me");
+  }
   return join(homedir(), ".config", "just-me");
 }
 

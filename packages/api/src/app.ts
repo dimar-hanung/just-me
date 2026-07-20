@@ -3,6 +3,7 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import {
   loadConfig,
   saveConfig,
+  getDefaultSqlitePath,
   testStorageConnection,
   getGoogleAuthUrl,
   exchangeGoogleCode,
@@ -70,6 +71,7 @@ app.get("/api/onboarding", async (c) => {
     complete: config.onboardingComplete,
     storageMode: config.storage?.mode ?? null,
     driveConnected: isDriveConnected(config),
+    defaultSqlitePath: getDefaultSqlitePath(),
   });
 });
 

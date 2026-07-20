@@ -18,6 +18,22 @@ stdio MCP server for Cursor. Requires completed onboarding and configured storag
 }
 ```
 
+On Windows, point `JUST_ME_CONFIG` at `%APPDATA%\just-me\config.json` (example: `C:\\Users\\you\\AppData\\Roaming\\just-me\\config.json`):
+
+```json
+{
+  "mcpServers": {
+    "just-me-todos": {
+      "command": "node",
+      "args": ["C:\\\\path\\\\to\\\\just-me\\\\packages\\\\mcp\\\\dist\\\\stdio.js"],
+      "env": {
+        "JUST_ME_CONFIG": "C:\\\\Users\\\\you\\\\AppData\\\\Roaming\\\\just-me\\\\config.json"
+      }
+    }
+  }
+}
+```
+
 ## Tools
 
 - `list_todos` — optional `status_id`, `tag`, `code`

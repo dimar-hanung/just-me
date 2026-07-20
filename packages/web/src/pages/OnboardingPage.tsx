@@ -11,11 +11,30 @@ export default function OnboardingPage({ onComplete }: { onComplete: () => void 
   const [tursoUrl, setTursoUrl] = useState("");
   const [tursoToken, setTursoToken] = useState("");
   const [localPath, setLocalPath] = useState("");
+  const [defaultSqlitePath, setDefaultSqlitePath] = useState(
+    "~/.config/just-me/todos.sqlite",
+  );
   const [error, setError] = useState("");
   const [driveConnected, setDriveConnected] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    api
+      .onboarding()
+      .then((state) => {
+        if (state.defaultSqlitePath) {
+          setDefaultSqlitePath(state.defaultSqlitePath);
+        }
+        if (state.driveConnected) {
+          setDriveConnected(true);
+        }
+      })
+      .catch(() => {
+        // keep platform-agnostic fallback placeholder
+      });
+  }, []);
 
   useEffect(() => {
     if (searchParams.get("drive") === "connected") {
@@ -103,7 +122,7 @@ export default function OnboardingPage({ onComplete }: { onComplete: () => void 
               <input
                 value={localPath}
                 onChange={(e) => setLocalPath(e.target.value)}
-                placeholder="Optional custom path (default: ~/.config/just-me/todos.sqlite)"
+                placeholder={`Optional custom path (default: ${defaultSqlitePath})`}
                 className="input-field"
               />
             ) : (

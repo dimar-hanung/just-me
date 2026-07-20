@@ -43,6 +43,7 @@ export type OnboardingState = {
   complete: boolean;
   storageMode: string | null;
   driveConnected: boolean;
+  defaultSqlitePath: string;
 };
 
 export type DriveBackup = {

@@ -8,7 +8,11 @@
   "main": "dist/main.js",
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @just-me/core build && pnpm --filter @just-me/api build && pnpm --filter @just-me/web build && tsc && electron-builder --linux deb AppImage",
+    "build": "pnpm run prepare:app && electron-builder --linux deb AppImage",
+    "build:linux": "pnpm run prepare:app && electron-builder --linux deb AppImage",
+    "build:win": "pnpm run prepare:app && electron-builder --win nsis",
+    "build:all": "pnpm run prepare:app && electron-builder --linux deb AppImage --win nsis",
+    "prepare:app": "pnpm --filter @just-me/core build && pnpm --filter @just-me/api build && pnpm --filter @just-me/web build && tsc",
     "dev": "tsc && electron .",
     "start": "electron ."
   },
@@ -42,6 +46,18 @@
       "executableName": "just-me",
       "artifactName": "JustMe-${version}-${arch}.${ext}",
       "maintainer": "Dimar Hanung <dimarhanung@ecampus.ut.ac.id>"
+    },
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "JustMe-${version}-${arch}-setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Just Me",
+      "uninstallDisplayName": "Just Me"
     }
   }
 }
