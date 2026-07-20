@@ -1,0 +1,9 @@
+.agents/canvas-markdown/
+node_modules/
+dist/
+*.local
+.env
+.DS_Store
+release/
+*.sqlite
+*.sqlite-journal

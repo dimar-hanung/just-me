@@ -1,0 +1,41 @@
+{
+  "name": "@just-me/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/main.js",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter @just-me/core build && pnpm --filter @just-me/api build && pnpm --filter @just-me/web build && tsc && electron-builder --linux deb AppImage",
+    "dev": "tsc && electron .",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@just-me/api": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.2"
+  },
+  "build": {
+    "appId": "dev.justme.todos",
+    "productName": "Just Me",
+    "directories": {
+      "output": "../../release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "node_modules/**/*",
+      "../api/dist/**/*",
+      "../core/dist/**/*",
+      "../web/dist/**/*"
+    ],
+    "extraResources": [],
+    "linux": {
+      "target": ["deb", "AppImage"],
+      "category": "Office"
+    }
+  }
+}

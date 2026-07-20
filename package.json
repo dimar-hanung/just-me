@@ -1,0 +1,17 @@
+{
+  "name": "just-me",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter @just-me/api --filter @just-me/web dev",
+    "dev:api": "pnpm --filter @just-me/api dev",
+    "dev:web": "pnpm --filter @just-me/web dev",
+    "dev:desktop": "pnpm --filter @just-me/desktop dev",
+    "dev:mcp": "pnpm --filter @just-me/mcp dev",
+    "build": "pnpm --filter @just-me/core build && pnpm --filter @just-me/api build && pnpm --filter @just-me/web build && pnpm --filter @just-me/mcp build",
+    "build:desktop": "pnpm --filter @just-me/desktop build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
