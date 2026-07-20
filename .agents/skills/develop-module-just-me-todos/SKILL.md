@@ -24,8 +24,9 @@ Use when working on the Just Me personal todo app: storage, API, UI, MCP, Electr
 - `packages/mcp` — Cursor stdio MCP tools
   - `src/stdio.ts` — tools: list/get/add/update todos, `edit_todo_lines`, list statuses, **list_fields**
   - `src/line-edit.ts` — 1-based inclusive line-range replace/insert/delete for todo markdown
-- `packages/desktop` — Electron main process + installer
+- `packages/desktop` — Electron main process + installer (`electron-builder` → `release/`)
 - Config file: `~/.config/just-me/config.json` (override with `JUST_ME_CONFIG`)
+- GitHub releases: tag `vX.Y.Z`, attach `JustMe-*` AppImage + `.deb` from `release/`
 
 ## References
 
@@ -70,3 +71,4 @@ Use when working on the Just Me personal todo app: storage, API, UI, MCP, Electr
 - Soft delete uses `todos.deleted_at`; list/get/update ignore trashed rows. Restart API after core build so migration adds `deleted_at`
 - Dynamic fields: tables `fields`, `field_options`, `todo_field_values`; tag values store option **ids**
 - Restart API after core build so migration drops legacy `todos.tags` column on existing DBs
+- Desktop Linux build needs `author` (+ email), `homepage`, and `linux.maintainer` in `packages/desktop/package.json` (required for `.deb`)
