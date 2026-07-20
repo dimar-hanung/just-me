@@ -75,3 +75,4 @@ Use when working on the Just Me personal todo app: storage, API, UI, MCP, Electr
 - Restart API after core build so migration drops legacy `todos.tags` column on existing DBs
 - Desktop Linux build needs `author` (+ email), `homepage`, and `linux.maintainer` in `packages/desktop/package.json` (required for `.deb`)
 - Windows NSIS from Linux needs Wine (local) or Docker image `electronuserland/builder:wine`
+- Cross-building Windows must ship `@libsql/win32-x64-msvc` (optional native). Root `pnpm.supportedArchitectures` includes `win32`, and `@just-me/core` depends on that package explicitly. Avoid broad `asarUnpack` — it breaks packaging of `../api`/`../core` dist files outside the desktop app dir

@@ -16,5 +16,12 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@9.15.0",
+  "pnpm": {
+    "supportedArchitectures": {
+      "os": ["current", "win32"],
+      "cpu": ["x64"],
+      "libc": ["current"]
+    }
+  }
 }

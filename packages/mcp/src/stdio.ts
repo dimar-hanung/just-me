@@ -33,7 +33,7 @@ async function main() {
   }
 
   const { client } = await createDb(config);
-  const server = new McpServer({ name: "just-me-todos", version: "0.1.0" });
+  const server = new McpServer({ name: "just-me-todos", version: "0.1.1" });
 
   server.tool(
     "list_todos",
