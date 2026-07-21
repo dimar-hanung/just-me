@@ -34,7 +34,24 @@ import {
   listBackups,
   restoreFromDrive,
   StorageSchema,
+  isR2Configured,
+  testR2Connection,
+  uploadToR2,
+  getFromR2,
+  buildUploadUrl,
+  MAX_UPLOAD_BYTES,
+  normalizeR2Input,
+  ViewFiltersSchema,
+  ViewSortSchema,
+  listViews,
+  getView,
+  createView,
+  updateView,
+  deleteView,
+  reorderViews,
   type DbContext,
+  type ViewFilters,
+  type ViewSort,
 } from "@just-me/core";
 import { requireOnboarding, withDb } from "./middleware.js";
 import { fileURLToPath } from "node:url";
@@ -72,12 +89,24 @@ app.get("/api/health", async (c) => {
   }
   try {
     await testStorageConnection(config);
+    const r2Configured = isR2Configured(config);
+    let r2Reachable: boolean | null = null;
+    if (r2Configured) {
+      try {
+        await testR2Connection(config);
+        r2Reachable = true;
+      } catch {
+        r2Reachable = false;
+      }
+    }
     return c.json({
       app: "just-me",
       ok: true,
       onboardingComplete: config.onboardingComplete,
       storage: config.storage.mode,
       driveConnected: isDriveConnected(config),
+      r2Configured,
+      r2Reachable,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Storage unreachable";
@@ -185,12 +214,65 @@ api.use("*", requireOnboarding);
 
 api.get("/settings", async (c) => {
   const config = await loadConfig();
+  const r2Configured = isR2Configured(config);
   return c.json({
     onboardingComplete: config.onboardingComplete,
     storage: config.storage ?? null,
     driveConnected: isDriveConnected(config),
     googleConfigured: Boolean(config.google?.clientId || process.env.GOOGLE_CLIENT_ID),
+    r2Configured,
+    r2: r2Configured
+      ? {
+          accountId: config.r2!.accountId,
+          bucketName: config.r2!.bucketName,
+          jurisdiction: config.r2!.jurisdiction,
+        }
+      : null,
   });
+});
+
+api.put("/settings/r2", async (c) => {
+  const body = await c.req.json();
+  const config = await loadConfig();
+  const existingApiToken = config.r2?.apiToken;
+  const apiToken =
+    typeof body.apiToken === "string" && body.apiToken.trim()
+      ? body.apiToken.trim()
+      : existingApiToken;
+
+  if (!apiToken) {
+    return c.json({ error: "apiToken is required" }, 400);
+  }
+
+  let r2;
+  try {
+    r2 = normalizeR2Input({
+      accountId: body.accountId,
+      bucketName: body.bucketName,
+      apiToken,
+      jurisdiction: body.jurisdiction === "eu" ? "eu" : undefined,
+      publicUrl: body.publicUrl,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid R2 settings";
+    return c.json({ error: message }, 400);
+  }
+  const draft = { ...config, r2 };
+  try {
+    await testR2Connection(draft);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "R2 connection failed";
+    return c.json({ error: message }, 400);
+  }
+  await saveConfig(draft);
+  return c.json({ ok: true, r2Configured: true });
+});
+
+api.delete("/settings/r2", async (c) => {
+  const config = await loadConfig();
+  const { r2: _removed, ...rest } = config;
+  await saveConfig(rest);
+  return c.json({ ok: true, r2Configured: false });
 });
 
 api.put("/settings/storage", async (c) => {
@@ -350,12 +432,129 @@ api.delete("/fields/:fieldId/options/:optionId", withDb, async (c) => {
   return c.json({ ok: true });
 });
 
+api.get("/views", withDb, async (c) => {
+  const { client } = c.get("db");
+  return c.json(await listViews(client));
+});
+
+api.post("/views", withDb, async (c) => {
+  const body = await c.req.json();
+  const { client } = c.get("db");
+
+  let copyFrom;
+  if (body.copyFromId) {
+    copyFrom = await getView(client, body.copyFromId);
+    if (!copyFrom) return c.json({ error: "copyFromId view not found" }, 404);
+  }
+
+  const name = typeof body.name === "string" && body.name.trim() ? body.name.trim() : "New view";
+  const view = await createView(client, {
+    name,
+    layout: body.layout,
+    filters: body.filters,
+    sorts: body.sorts,
+    columns: body.columns,
+    pageSize: body.pageSize,
+    copyFrom: copyFrom ?? undefined,
+  });
+  return c.json(view, 201);
+});
+
+api.put("/views/reorder", withDb, async (c) => {
+  const body = await c.req.json();
+  if (!Array.isArray(body.ids)) {
+    return c.json({ error: "ids array is required" }, 400);
+  }
+  const { client } = c.get("db");
+  try {
+    return c.json(await reorderViews(client, body.ids));
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : "Reorder failed" }, 400);
+  }
+});
+
+api.get("/views/:id", withDb, async (c) => {
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: "id is required" }, 400);
+  const { client } = c.get("db");
+  const view = await getView(client, id);
+  if (!view) return c.json({ error: "Not found" }, 404);
+  return c.json(view);
+});
+
+api.patch("/views/:id", withDb, async (c) => {
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: "id is required" }, 400);
+  const body = await c.req.json();
+  const { client } = c.get("db");
+
+  if (body.filters !== undefined) {
+    const parsed = ViewFiltersSchema.safeParse(body.filters);
+    if (!parsed.success) return c.json({ error: "Invalid filters" }, 400);
+  }
+  if (body.sorts !== undefined) {
+    const parsed = ViewSortSchema.array().safeParse(body.sorts);
+    if (!parsed.success) return c.json({ error: "Invalid sorts" }, 400);
+  }
+
+  const updated = await updateView(client, id, {
+    name: body.name,
+    layout: body.layout,
+    filters: body.filters,
+    sorts: body.sorts,
+    columns: body.columns,
+    pageSize: body.pageSize,
+  });
+  if (!updated) return c.json({ error: "Not found" }, 404);
+  return c.json(updated);
+});
+
+api.delete("/views/:id", withDb, async (c) => {
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: "id is required" }, 400);
+  const { client } = c.get("db");
+  const result = await deleteView(client, id);
+  if (!result.ok) return c.json({ error: result.reason ?? "Delete failed" }, 400);
+  return c.json({ ok: true });
+});
+
+function parseJsonQuery<T>(raw: string | undefined, label: string): T | undefined | "invalid" {
+  if (raw === undefined) return undefined;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return "invalid";
+  }
+}
+
 api.get("/todos", withDb, async (c) => {
   const { client } = c.get("db");
   const statusId = c.req.query("status_id") ?? undefined;
   const code = c.req.query("code") ?? undefined;
   const limitRaw = c.req.query("limit");
   const offsetRaw = c.req.query("offset");
+  const filtersRaw = c.req.query("filters");
+  const sortsRaw = c.req.query("sorts");
+
+  let filters: ViewFilters | undefined;
+  if (filtersRaw !== undefined) {
+    const parsed = parseJsonQuery<unknown>(filtersRaw, "filters");
+    if (parsed === "invalid") return c.json({ error: "Invalid filters JSON" }, 400);
+    const validated = ViewFiltersSchema.safeParse(parsed);
+    if (!validated.success) return c.json({ error: "Invalid filters" }, 400);
+    filters = validated.data as ViewFilters;
+  }
+
+  let sorts: ViewSort[] | undefined;
+  if (sortsRaw !== undefined) {
+    const parsed = parseJsonQuery<unknown>(sortsRaw, "sorts");
+    if (parsed === "invalid") return c.json({ error: "Invalid sorts JSON" }, 400);
+    const validated = ViewSortSchema.array().safeParse(parsed);
+    if (!validated.success) return c.json({ error: "Invalid sorts" }, 400);
+    sorts = validated.data as ViewSort[];
+  }
+
+  const listParams = { statusId, code, filters, sorts };
 
   if (limitRaw !== undefined) {
     const limit = Number(limitRaw);
@@ -366,10 +565,10 @@ api.get("/todos", withDb, async (c) => {
     if (!Number.isInteger(offset) || offset < 0) {
       return c.json({ error: "offset must be a non-negative integer" }, 400);
     }
-    return c.json(await listTodos(client, { statusId, code, limit, offset }));
+    return c.json(await listTodos(client, { ...listParams, limit, offset }));
   }
 
-  return c.json(await listTodos(client, { statusId, code }));
+  return c.json(await listTodos(client, listParams));
 });
 
 api.get("/todos/trash", withDb, async (c) => {
@@ -485,6 +684,86 @@ api.post("/restore", withDb, async (c) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Restore failed";
     return c.json({ error: message }, 400);
+  }
+});
+
+api.post("/uploads", async (c) => {
+  const config = await loadConfig();
+  if (!isR2Configured(config)) {
+    return c.json({ error: "R2 is not configured" }, 503);
+  }
+
+  let formData: FormData;
+  try {
+    formData = await c.req.formData();
+  } catch {
+    return c.json({ error: "Expected multipart form data" }, 400);
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File)) {
+    return c.json({ error: "file is required" }, 400);
+  }
+
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return c.json({ error: `File exceeds ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB limit` }, 400);
+  }
+
+  const mimeType = file.type || "application/octet-stream";
+  const buffer = new Uint8Array(await file.arrayBuffer());
+
+  try {
+    const uploaded = await uploadToR2(config, {
+      buffer,
+      filename: file.name || "file",
+      mimeType,
+    });
+    const url = buildUploadUrl(uploaded.key);
+    return c.json({
+      url,
+      key: uploaded.key,
+      filename: uploaded.filename,
+      mimeType: uploaded.mimeType,
+      size: uploaded.size,
+      isImage: uploaded.isImage,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Upload failed";
+    const status = message.includes("not allowed") ? 415 : 400;
+    return c.json({ error: message }, status);
+  }
+});
+
+api.get("/uploads/*", async (c) => {
+  const config = await loadConfig();
+  if (!isR2Configured(config)) {
+    return c.json({ error: "R2 is not configured" }, 503);
+  }
+
+  const uploadPathPrefix = "/api/uploads/";
+  const rawKey = c.req.path.startsWith(uploadPathPrefix)
+    ? c.req.path.slice(uploadPathPrefix.length)
+    : "";
+  if (!rawKey) {
+    return c.json({ error: "Not found" }, 404);
+  }
+
+  const key = decodeURIComponent(rawKey);
+  try {
+    const object = await getFromR2(config, key);
+    if (!object) {
+      return c.json({ error: "Not found" }, 404);
+    }
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": object.mimeType,
+        "Content-Length": String(object.size),
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load file";
+    return c.json({ error: message }, 500);
   }
 });
 

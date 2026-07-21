@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Cloud,
   Database,
+  ImagePlus,
   RefreshCw,
   Server,
   XCircle,
@@ -167,6 +168,22 @@ export default function HealthCheckSection() {
                 label="Google Drive"
                 value={health.driveConnected ? "Connected" : "Not connected"}
                 ok={health.driveConnected ? true : null}
+              />
+            )}
+            {health.storage && (
+              <StatusRow
+                icon={ImagePlus}
+                label="Cloudflare R2"
+                value={
+                  !health.r2Configured
+                    ? "Not configured"
+                    : health.r2Reachable
+                      ? "Reachable"
+                      : "Unreachable"
+                }
+                ok={
+                  !health.r2Configured ? null : health.r2Reachable ? true : false
+                }
               />
             )}
           </ul>

@@ -1,11 +1,14 @@
 import { ChevronLeft } from "lucide-react";
-import type { Status, Todo } from "../api";
+import type { Field, Status, Todo } from "../api";
 import { getStatusHueClass } from "../status-hue";
+import type { TodoColumnId } from "../todo-columns";
 import KanbanCard from "./KanbanCard";
 
 type KanbanColumnProps = {
   status: Status;
   todos: Todo[];
+  fields: Field[];
+  visibleColumns: Set<TodoColumnId>;
   columnIndex: number;
   collapsed: boolean;
   draggingTodoId: string | null;
@@ -21,6 +24,8 @@ type KanbanColumnProps = {
 export default function KanbanColumn({
   status,
   todos,
+  fields,
+  visibleColumns,
   columnIndex,
   collapsed,
   draggingTodoId,
@@ -91,6 +96,8 @@ export default function KanbanColumn({
               <KanbanCard
                 key={todo.id}
                 todo={todo}
+                fields={fields}
+                visibleColumns={visibleColumns}
                 index={index}
                 isDragging={draggingTodoId === todo.id}
                 onDragStart={onDragStart}

@@ -1,9 +1,14 @@
 import { Trash2 } from "lucide-react";
-import { useRef } from "react";
-import type { Todo } from "../api";
+import { useMemo, useRef } from "react";
+import type { Field, Todo } from "../api";
+import { formatFieldDisplayValue } from "../components/FieldValueEditors";
+import type { TodoColumnId } from "../todo-columns";
+import { formatTodoDate } from "../todo-date";
 
 type KanbanCardProps = {
   todo: Todo;
+  fields: Field[];
+  visibleColumns: Set<TodoColumnId>;
   index: number;
   isDragging: boolean;
   onDragStart: (todoId: string) => void;
@@ -33,6 +38,8 @@ function contentPreview(markdown: string, maxLen = 140): string {
 
 export default function KanbanCard({
   todo,
+  fields,
+  visibleColumns,
   index,
   isDragging,
   onDragStart,
@@ -41,7 +48,18 @@ export default function KanbanCard({
   onSelect,
 }: KanbanCardProps) {
   const didDragRef = useRef(false);
-  const preview = todo.content?.trim() ? contentPreview(todo.content) : "";
+  const showCode = visibleColumns.has("code");
+  const showContent = visibleColumns.has("content");
+  const showDue = visibleColumns.has("due");
+  const showUpdated = visibleColumns.has("updated");
+  const preview = showContent && todo.content?.trim() ? contentPreview(todo.content) : "";
+
+  const visibleFields = useMemo(
+    () => fields.filter((field) => visibleColumns.has(`field:${field.id}`)),
+    [fields, visibleColumns],
+  );
+
+  const hasMeta = showDue || showUpdated || visibleFields.length > 0;
 
   return (
     <article
@@ -77,9 +95,33 @@ export default function KanbanCard({
         tabIndex={0}
         aria-label={`Open ${todo.title}`}
       >
-        {todo.code ? <span className="kanban-card-code">{todo.code}</span> : null}
+        {showCode && todo.code ? <span className="kanban-card-code">{todo.code}</span> : null}
         <p className="kanban-card-title">{todo.title}</p>
         {preview ? <p className="kanban-card-preview">{preview}</p> : null}
+        {hasMeta ? (
+          <dl className="kanban-card-meta">
+            {showDue && (
+              <div className="kanban-card-meta-row">
+                <dt className="kanban-card-meta-label">Due</dt>
+                <dd className="kanban-card-meta-value">{formatTodoDate(todo.dueAt)}</dd>
+              </div>
+            )}
+            {showUpdated && (
+              <div className="kanban-card-meta-row">
+                <dt className="kanban-card-meta-label">Updated</dt>
+                <dd className="kanban-card-meta-value">{formatTodoDate(todo.updatedAt)}</dd>
+              </div>
+            )}
+            {visibleFields.map((field) => (
+              <div key={field.id} className="kanban-card-meta-row">
+                <dt className="kanban-card-meta-label">{field.name}</dt>
+                <dd className="kanban-card-meta-value">
+                  {formatFieldDisplayValue(field, todo.fieldValues?.[field.id])}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
       </div>
       <button
         type="button"

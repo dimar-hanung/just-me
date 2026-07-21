@@ -109,7 +109,22 @@ async function migrate(client: Client): Promise<void> {
       value TEXT NOT NULL,
       PRIMARY KEY (todo_id, field_id)
     )`,
+    `CREATE TABLE IF NOT EXISTS views (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      layout TEXT NOT NULL CHECK (layout IN ('kanban', 'table')),
+      filters_json TEXT NOT NULL DEFAULT '{"logic":"and","items":[]}',
+      sorts_json TEXT NOT NULL DEFAULT '[{"field":"updated_at","direction":"desc"}]',
+      columns_json TEXT NOT NULL DEFAULT '{}',
+      page_size TEXT NOT NULL DEFAULT '30',
+      sort_order INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
   ]);
+
+  const { seedDefaultViews } = await import("./views.js");
+  await seedDefaultViews(client);
 
   const existing = await client.execute("SELECT COUNT(*) AS count FROM statuses");
   const count = Number(existing.rows[0]?.count ?? 0);

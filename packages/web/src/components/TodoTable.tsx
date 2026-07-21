@@ -3,54 +3,55 @@ import { useMemo } from "react";
 import type { Field, Status, Todo, TodoFieldValues } from "../api";
 import { FieldValueEditor } from "../components/FieldValueEditors";
 import { getStatusHueClass } from "../status-hue";
+import type { TodoColumnId } from "../todo-columns";
+import { formatTodoDate } from "../todo-date";
 
 type TodoTableProps = {
   statuses: Status[];
   fields: Field[];
   todos: Todo[];
+  visibleColumns: Set<TodoColumnId>;
   onMove: (todoId: string, statusId: string) => void;
   onFieldChange: (todoId: string, fieldValues: TodoFieldValues) => void;
   onDelete: (todoId: string) => void;
   onSelect: (todoId: string) => void;
 };
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
 export default function TodoTable({
   statuses,
   fields,
   todos,
+  visibleColumns,
   onMove,
   onFieldChange,
   onDelete,
   onSelect,
 }: TodoTableProps) {
   const statusById = useMemo(() => new Map(statuses.map((s) => [s.id, s])), [statuses]);
+  const visibleFields = useMemo(
+    () => fields.filter((field) => visibleColumns.has(`field:${field.id}`)),
+    [fields, visibleColumns],
+  );
 
   if (todos.length === 0) {
-    return <p className="text-subtle text-sm">No todos yet. Add one to get started.</p>;
+    return <p className="todo-view-empty text-subtle text-sm">No todos yet. Add one to get started.</p>;
   }
 
   return (
-    <div className="todo-table-wrap panel">
+    <div className="todo-table-wrap">
       <table className="todo-table">
         <thead>
           <tr>
-            <th scope="col">Code</th>
+            {visibleColumns.has("code") && <th scope="col">Code</th>}
             <th scope="col">Title</th>
-            <th scope="col">Status</th>
-            {fields.map((field) => (
+            {visibleColumns.has("status") && <th scope="col">Status</th>}
+            {visibleFields.map((field) => (
               <th key={field.id} scope="col">
                 {field.name}
               </th>
             ))}
-            <th scope="col">Due</th>
-            <th scope="col">Updated</th>
+            {visibleColumns.has("due") && <th scope="col">Due</th>}
+            {visibleColumns.has("updated") && <th scope="col">Updated</th>}
             <th scope="col">
               <span className="sr-only">Actions</span>
             </th>
@@ -77,7 +78,9 @@ export default function TodoTable({
                 tabIndex={0}
                 aria-label={`Open ${todo.title}`}
               >
-                <td className="todo-table-code">{todo.code || "—"}</td>
+                {visibleColumns.has("code") && (
+                  <td className="todo-table-code">{todo.code || "—"}</td>
+                )}
                 <td className="todo-table-title">
                   <span className="todo-table-title-text">
                     {todo.content?.trim() ? (
@@ -90,27 +93,29 @@ export default function TodoTable({
                     {todo.title}
                   </span>
                 </td>
-                <td className="todo-table-status-cell">
-                  <label className={`todo-table-status ${hueClass}`}>
-                    <span className="hue-dot" aria-hidden="true" />
-                    <select
-                      value={todo.statusId}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        onMove(todo.id, e.target.value);
-                      }}
-                      aria-label={`Status for ${todo.title}`}
-                    >
-                      {statuses.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </td>
-                {fields.map((field) => (
+                {visibleColumns.has("status") && (
+                  <td className="todo-table-status-cell">
+                    <label className={`todo-table-status ${hueClass}`}>
+                      <span className="hue-dot" aria-hidden="true" />
+                      <select
+                        value={todo.statusId}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          onMove(todo.id, e.target.value);
+                        }}
+                        aria-label={`Status for ${todo.title}`}
+                      >
+                        {statuses.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </td>
+                )}
+                {visibleFields.map((field) => (
                   <td key={field.id} className="todo-table-field-cell">
                     <FieldValueEditor
                       field={field}
@@ -122,8 +127,12 @@ export default function TodoTable({
                     />
                   </td>
                 ))}
-                <td className="todo-table-date">{formatDate(todo.dueAt)}</td>
-                <td className="todo-table-date">{formatDate(todo.updatedAt)}</td>
+                {visibleColumns.has("due") && (
+                  <td className="todo-table-date">{formatTodoDate(todo.dueAt)}</td>
+                )}
+                {visibleColumns.has("updated") && (
+                  <td className="todo-table-date">{formatTodoDate(todo.updatedAt)}</td>
+                )}
                 <td className="todo-table-actions">
                   <button
                     type="button"

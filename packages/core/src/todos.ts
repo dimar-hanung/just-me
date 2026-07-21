@@ -7,7 +7,12 @@ import {
   setTodoFieldValues,
 } from "./fields.js";
 import { generateNextTicketCode } from "./ticket-code.js";
-import type { Field, Todo, TodoFieldValues } from "./types.js";
+import {
+  buildListTodosQueryParts,
+  legacyStatusFilter,
+  mergeViewFilters,
+} from "./todo-filters.js";
+import type { Field, Todo, TodoFieldValues, ViewFilters, ViewSort } from "./types.js";
 
 const TODO_SELECT = `
   SELECT t.id, t.code, t.title, t.content, t.status_id, s.name AS status_name,
@@ -47,6 +52,8 @@ async function attachFieldValues(client: Client, todos: Todo[]): Promise<Todo[]>
 export type ListTodosFilter = {
   statusId?: string;
   code?: string;
+  filters?: ViewFilters;
+  sorts?: ViewSort[];
   limit?: number;
   offset?: number;
 };
@@ -57,23 +64,43 @@ export type ListTodosResult = {
   hasMore: boolean;
 };
 
+function resolveListFilters(filter: ListTodosFilter): { filters?: ViewFilters; sorts?: ViewSort[] } {
+  let filters = filter.filters;
+  const sorts = filter.sorts;
+
+  if (filter.statusId) {
+    filters = mergeViewFilters(filters ?? { logic: "and", items: [] }, legacyStatusFilter(filter.statusId));
+  }
+
+  return { filters, sorts };
+}
+
 function buildListTodosWhere(filter: ListTodosFilter): { where: string; args: (string | number)[] } {
+  const { filters } = resolveListFilters(filter);
   let where = " WHERE t.deleted_at IS NULL";
   const args: (string | number)[] = [];
 
-  if (filter.statusId) {
-    where += " AND t.status_id = ?";
-    args.push(filter.statusId);
-  }
   if (filter.code) {
     where += " AND UPPER(t.code) = ?";
     args.push(filter.code.trim().toUpperCase());
   }
 
+  const filterPart = buildListTodosQueryParts(filters, undefined);
+  where += filterPart.where;
+  args.push(...filterPart.args);
+
   return { where, args };
 }
 
-const LIST_TODOS_ORDER = " ORDER BY t.updated_at DESC, t.id DESC";
+function buildListTodosOrder(filter: ListTodosFilter): {
+  orderBy: string;
+  joins: string;
+  joinArgs: (string | number)[];
+} {
+  const { filters, sorts } = resolveListFilters(filter);
+  const parts = buildListTodosQueryParts(filters, sorts);
+  return { orderBy: parts.orderBy, joins: parts.joins, joinArgs: parts.joinArgs };
+}
 
 export async function listTodos(
   client: Client,
@@ -85,18 +112,20 @@ export async function listTodos(
   filter: ListTodosFilter = {},
 ): Promise<Todo[] | ListTodosResult> {
   const { where, args } = buildListTodosWhere(filter);
+  const { orderBy, joins, joinArgs } = buildListTodosOrder(filter);
+  const fromClause = `${TODO_SELECT}${joins}`;
 
   if (filter.limit !== undefined) {
     const offset = filter.offset ?? 0;
     const countResult = await client.execute({
-      sql: `SELECT COUNT(*) AS total FROM todos t${where}`,
-      args,
+      sql: `SELECT COUNT(*) AS total FROM todos t JOIN statuses s ON s.id = t.status_id${joins}${where}`,
+      args: [...joinArgs, ...args],
     });
     const total = Number(countResult.rows[0]?.total ?? 0);
 
     const result = await client.execute({
-      sql: `${TODO_SELECT}${where}${LIST_TODOS_ORDER} LIMIT ? OFFSET ?`,
-      args: [...args, filter.limit, offset],
+      sql: `${fromClause}${where}${orderBy} LIMIT ? OFFSET ?`,
+      args: [...joinArgs, ...args, filter.limit, offset],
     });
     const todos = result.rows.map((row) => rowToTodo(row as Record<string, unknown>));
     const withFields = await attachFieldValues(client, todos);
@@ -108,8 +137,8 @@ export async function listTodos(
   }
 
   const result = await client.execute({
-    sql: `${TODO_SELECT}${where}${LIST_TODOS_ORDER}`,
-    args,
+    sql: `${fromClause}${where}${orderBy}`,
+    args: [...joinArgs, ...args],
   });
   const todos = result.rows.map((row) => rowToTodo(row as Record<string, unknown>));
   return attachFieldValues(client, todos);

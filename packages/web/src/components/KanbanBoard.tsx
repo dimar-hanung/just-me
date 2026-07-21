@@ -1,11 +1,14 @@
 import { useMemo, useState } from "react";
-import type { Status, Todo } from "../api";
+import type { Field, Status, Todo } from "../api";
 import { loadCollapsedColumnIds, saveCollapsedColumnIds } from "../kanban-collapse";
+import type { TodoColumnId } from "../todo-columns";
 import KanbanColumn from "./KanbanColumn";
 
 type KanbanBoardProps = {
   statuses: Status[];
+  fields: Field[];
   todos: Todo[];
+  visibleColumns: Set<TodoColumnId>;
   draggingTodoId: string | null;
   onDragStart: (todoId: string) => void;
   onDragEnd: () => void;
@@ -16,7 +19,9 @@ type KanbanBoardProps = {
 
 export default function KanbanBoard({
   statuses,
+  fields,
   todos,
+  visibleColumns,
   draggingTodoId,
   onDragStart,
   onDragEnd,
@@ -75,6 +80,8 @@ export default function KanbanBoard({
           key={status.id}
           status={status}
           todos={todosByStatus.get(status.id) ?? []}
+          fields={fields}
+          visibleColumns={visibleColumns}
           columnIndex={index}
           collapsed={collapsedIds.has(status.id)}
           draggingTodoId={draggingTodoId}

@@ -45,6 +45,19 @@ export type ListTodosPage = {
   hasMore: boolean;
 };
 
+export type {
+  TodoView,
+  ViewColumnVisibility,
+  ViewFilterGroup,
+  ViewFilterItem,
+  ViewFilterOp,
+  ViewFilterRule,
+  ViewFilters,
+  ViewLayout,
+  ViewPageSize,
+  ViewSort,
+} from "./view-types";
+
 export type OnboardingState = {
   complete: boolean;
   storageMode: string | null;
@@ -64,7 +77,32 @@ export type HealthResponse = {
   onboardingComplete: boolean;
   storage: "local" | "turso" | null;
   driveConnected?: boolean;
+  r2Configured?: boolean;
+  r2Reachable?: boolean | null;
   error?: string;
+};
+
+export type R2Settings = {
+  accountId: string;
+  bucketName: string;
+  apiToken?: string;
+  jurisdiction?: "eu";
+  publicUrl?: string;
+};
+
+export type R2SettingsPublic = {
+  accountId: string;
+  bucketName: string;
+  jurisdiction?: "eu";
+};
+
+export type UploadResult = {
+  url: string;
+  key: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  isImage: boolean;
 };
 
 async function fetchHealth(): Promise<HealthResponse> {
@@ -112,9 +150,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
+async function uploadRequest(path: string, formData: FormData): Promise<UploadResult> {
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: "POST",
+      body: formData,
+    });
+  } catch {
+    throw new Error(
+      "Cannot reach the API server. Start it with `pnpm dev:api` (port 7842) or run `pnpm dev` to start API + web together.",
+    );
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error ?? `Upload failed (${res.status})`);
+  }
+  return data as UploadResult;
+}
+
 type ListTodosParams = {
   statusId?: string;
   code?: string;
+  filters?: import("./view-types").ViewFilters;
+  sorts?: import("./view-types").ViewSort[];
   limit?: number;
   offset?: number;
 };
@@ -123,6 +183,8 @@ function buildTodosQuery(params?: ListTodosParams): string {
   const query = new URLSearchParams();
   if (params?.statusId) query.set("status_id", params.statusId);
   if (params?.code) query.set("code", params.code);
+  if (params?.filters) query.set("filters", JSON.stringify(params.filters));
+  if (params?.sorts) query.set("sorts", JSON.stringify(params.sorts));
   if (params?.limit !== undefined) query.set("limit", String(params.limit));
   if (params?.offset !== undefined) query.set("offset", String(params.offset));
   const qs = query.toString();
@@ -149,7 +211,27 @@ export const api = {
   completeOnboarding: () =>
     request<{ ok: boolean }>("/api/onboarding/complete", { method: "POST" }),
   googleAuthUrl: () => request<{ url: string }>("/api/onboarding/google/auth-url"),
-  settings: () => request<{ storage: unknown; driveConnected: boolean }>("/api/settings"),
+  settings: () =>
+    request<{
+      storage: unknown;
+      driveConnected: boolean;
+      r2Configured: boolean;
+      r2: R2SettingsPublic | null;
+    }>("/api/settings"),
+  updateR2Settings: (body: R2Settings) =>
+    request<{ ok: boolean; r2Configured: boolean }>("/api/settings/r2", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  clearR2Settings: () =>
+    request<{ ok: boolean; r2Configured: boolean }>("/api/settings/r2", {
+      method: "DELETE",
+    }),
+  uploadFile: (file: File) => {
+    const formData = new FormData();
+    formData.set("file", file);
+    return uploadRequest("/api/uploads", formData);
+  },
   updateStorage: (body: Record<string, unknown>) =>
     request<{ ok: boolean; warning?: string }>("/api/settings/storage", {
       method: "PUT",
@@ -228,4 +310,39 @@ export const api = {
   listBackups: () => request<DriveBackup[]>("/api/backups"),
   restore: (fileId: string) =>
     request<{ ok: boolean }>("/api/restore", { method: "POST", body: JSON.stringify({ fileId }) }),
+  listViews: () => request<import("./view-types").TodoView[]>("/api/views"),
+  createView: (body: {
+    name?: string;
+    layout?: import("./view-types").ViewLayout;
+    filters?: import("./view-types").ViewFilters;
+    sorts?: import("./view-types").ViewSort[];
+    columns?: import("./view-types").ViewColumnVisibility;
+    pageSize?: import("./view-types").ViewPageSize;
+    copyFromId?: string;
+  }) =>
+    request<import("./view-types").TodoView>("/api/views", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getView: (id: string) => request<import("./view-types").TodoView>(`/api/views/${id}`),
+  updateView: (
+    id: string,
+    patch: Partial<
+      Pick<
+        import("./view-types").TodoView,
+        "name" | "layout" | "filters" | "sorts" | "columns" | "pageSize"
+      >
+    >,
+  ) =>
+    request<import("./view-types").TodoView>(`/api/views/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  deleteView: (id: string) =>
+    request<{ ok: boolean }>(`/api/views/${id}`, { method: "DELETE" }),
+  reorderViews: (ids: string[]) =>
+    request<import("./view-types").TodoView[]>("/api/views/reorder", {
+      method: "PUT",
+      body: JSON.stringify({ ids }),
+    }),
 };

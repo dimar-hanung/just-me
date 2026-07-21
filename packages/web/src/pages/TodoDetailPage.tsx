@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api, type Field, type Todo, type TodoFieldValues } from "../api";
 import { FieldValuesSection } from "../components/FieldValueEditors";
 import MarkdownContent from "../components/MarkdownContent";
+import MarkdownTextarea from "../components/MarkdownTextarea";
 
 type Tab = "write" | "preview";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -28,6 +29,7 @@ export default function TodoDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [uploadEnabled, setUploadEnabled] = useState(false);
 
   const savedTitleRef = useRef("");
   const savedContentRef = useRef("");
@@ -107,13 +109,14 @@ export default function TodoDetailPage() {
 
     setLoading(true);
     setError("");
-    Promise.all([api.getTodo(id), api.listFields()])
-      .then(([found, fieldList]) => {
+    Promise.all([api.getTodo(id), api.listFields(), api.settings()])
+      .then(([found, fieldList, settings]) => {
         if (!found) {
           navigate("/", { replace: true });
           return;
         }
         setFields(fieldList);
+        setUploadEnabled(settings.r2Configured);
         setTodo(found);
         setTitle(found.title);
         setContent(found.content ?? "");
@@ -256,10 +259,11 @@ export default function TodoDetailPage() {
 
       <div className="todo-detail-body">
         {tab === "write" ? (
-          <textarea
+          <MarkdownTextarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Write markdown notes…"
+            onChange={setContent}
+            uploadEnabled={uploadEnabled}
+            placeholder="Write markdown notes… Paste or drop files to attach."
             className="todo-detail-textarea"
             aria-label="Markdown content"
           />

@@ -1,6 +1,7 @@
 import {
   CloudUpload,
   HardDrive,
+  ImagePlus,
   Pencil,
   Plus,
   RotateCcw,
@@ -25,6 +26,11 @@ export default function SettingsPage() {
   const [tursoUrl, setTursoUrl] = useState("");
   const [tursoToken, setTursoToken] = useState("");
   const [driveConnected, setDriveConnected] = useState(false);
+  const [r2Configured, setR2Configured] = useState(false);
+  const [r2AccountId, setR2AccountId] = useState("");
+  const [r2BucketName, setR2BucketName] = useState("");
+  const [r2ApiToken, setR2ApiToken] = useState("");
+  const [r2EuJurisdiction, setR2EuJurisdiction] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -39,6 +45,17 @@ export default function SettingsPage() {
       setStatuses(statusList);
       setFields(fieldList);
       setDriveConnected(settings.driveConnected);
+      setR2Configured(settings.r2Configured);
+      if (settings.r2) {
+        setR2AccountId(settings.r2.accountId);
+        setR2BucketName(settings.r2.bucketName);
+        setR2EuJurisdiction(settings.r2.jurisdiction === "eu");
+      } else {
+        setR2AccountId("");
+        setR2ApiToken("");
+        setR2BucketName("");
+        setR2EuJurisdiction(false);
+      }
       if (settings.storage && typeof settings.storage === "object") {
         const storage = settings.storage as { mode?: string; url?: string };
         if (storage.mode === "turso") {
@@ -171,6 +188,37 @@ export default function SettingsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update storage");
+    }
+  }
+
+  async function handleR2Save(e: FormEvent) {
+    e.preventDefault();
+    setMessage("");
+    setError("");
+    try {
+      await api.updateR2Settings({
+        accountId: r2AccountId.trim(),
+        bucketName: r2BucketName.trim(),
+        apiToken: r2ApiToken.trim(),
+        jurisdiction: r2EuJurisdiction ? "eu" : undefined,
+      });
+      setR2ApiToken("");
+      setMessage("Cloudflare R2 connected.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save R2 settings");
+    }
+  }
+
+  async function handleR2Disconnect() {
+    setMessage("");
+    setError("");
+    try {
+      await api.clearR2Settings();
+      setMessage("Cloudflare R2 disconnected.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to disconnect R2");
     }
   }
 
@@ -396,6 +444,66 @@ export default function SettingsPage() {
             <HardDrive className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
             Save storage
           </button>
+        </form>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-medium">Cloudflare R2 attachments</h2>
+        <p className="text-sm text-muted">
+          Paste or drop images and files into todo notes. Enter the <strong>Token Value</strong>{" "}
+          from an R2 <strong>Admin Read &amp; Write</strong> token—not an Access Key ID, Secret
+          Access Key, or Object Read &amp; Write token.
+        </p>
+        <form onSubmit={handleR2Save} className="space-y-3">
+          <input
+            value={r2AccountId}
+            onChange={(e) => setR2AccountId(e.target.value)}
+            placeholder="Account ID or https://<account-id>.r2.cloudflarestorage.com/bucket"
+            className="input-field"
+            autoComplete="off"
+          />
+          <input
+            value={r2BucketName}
+            onChange={(e) => setR2BucketName(e.target.value)}
+            placeholder="Bucket name"
+            className="input-field"
+            autoComplete="off"
+          />
+          <input
+            value={r2ApiToken}
+            onChange={(e) => setR2ApiToken(e.target.value)}
+            placeholder={
+              r2Configured
+                ? "Admin token value (leave blank to keep current)"
+                : "Admin Read & Write token value"
+            }
+            className="input-field"
+            type="password"
+            autoComplete="new-password"
+          />
+          <label className="inline-flex items-center gap-2 text-sm text-muted">
+            <input
+              type="checkbox"
+              checked={r2EuJurisdiction}
+              onChange={(e) => setR2EuJurisdiction(e.target.checked)}
+            />
+            Bucket uses EU jurisdiction endpoint
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" className="btn-secondary inline-flex items-center gap-1.5">
+              <ImagePlus className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+              {r2Configured ? "Update R2" : "Connect R2"}
+            </button>
+            {r2Configured && (
+              <button
+                type="button"
+                onClick={handleR2Disconnect}
+                className="btn-secondary inline-flex items-center gap-1.5"
+              >
+                Disconnect
+              </button>
+            )}
+          </div>
         </form>
       </section>
 

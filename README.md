@@ -126,7 +126,17 @@ Stored fields:
 
 - Storage mode: `local` or `turso`
 - Google refresh token after Drive connect
+- Cloudflare R2 credentials for todo attachments (optional)
 - `onboardingComplete` flag
+
+### Cloudflare R2 attachments (optional)
+
+1. In the [Cloudflare dashboard](https://dash.cloudflare.com/), create an R2 bucket.
+2. Create an R2 API token with **Admin Read & Write**, then copy its **Token Value**.
+3. In Just Me → **Settings** → **Cloudflare R2 attachments**, enter the Account ID (or R2 endpoint URL), bucket name, and token value.
+4. On a todo detail page (**Write** tab), paste an image with Ctrl+V or drag a file into the note area.
+
+Attachments are stored in R2; markdown in the todo references them via `/api/uploads/...` URLs. Max file size: 100 MB.
 
 ## Architecture
 

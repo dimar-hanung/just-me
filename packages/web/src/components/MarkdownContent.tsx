@@ -18,6 +18,11 @@ export default function MarkdownContent({ source, onSourceChange }: MarkdownCont
   }
 
   const components: Components = {
+    a: ({ href, children, ...props }) => (
+      <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+        {children}
+      </a>
+    ),
     input: ({ disabled: _disabled, ...props }) => {
       if (props.type !== "checkbox") {
         return <input {...props} />;
