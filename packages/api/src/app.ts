@@ -452,17 +452,28 @@ api.post("/restore", withDb, async (c) => {
 
 app.route("/api", api);
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const webDist = join(__dirname, "../../web/dist");
+function getWebDistDir(): string {
+  if (process.env.JUST_ME_WEB_DIST) {
+    return process.env.JUST_ME_WEB_DIST;
+  }
+  return join(dirname(fileURLToPath(import.meta.url)), "../../web/dist");
+}
 
-app.use("/assets/*", serveStatic({ root: webDist }));
-app.use("/favicon.ico", serveStatic({ root: webDist }));
+app.use("/assets/*", serveStatic({ root: getWebDistDir() }));
+app.use("/favicon.ico", serveStatic({ root: getWebDistDir() }));
 app.get("*", async (c) => {
   if (c.req.path.startsWith("/api")) {
     return c.json({ error: "Not found" }, 404);
   }
-  const html = await readFile(join(webDist, "index.html"), "utf8");
-  return c.html(html);
+  const indexPath = join(getWebDistDir(), "index.html");
+  try {
+    const html = await readFile(indexPath, "utf8");
+    return c.html(html);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load UI";
+    console.error(`Just Me UI missing at ${indexPath}: ${message}`);
+    return c.text("Just Me UI files are missing from this install.", 500);
+  }
 });
 
 export { app };

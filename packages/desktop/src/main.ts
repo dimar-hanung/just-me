@@ -1,3 +1,4 @@
+import "./env.js";
 import { app, BrowserWindow, dialog } from "electron";
 import { DEFAULT_API_PORT, startServer, type ApiServer } from "@just-me/api";
 
@@ -28,10 +29,6 @@ async function isJustMeApiRunning(): Promise<boolean> {
 }
 
 async function ensureApiServer(): Promise<ApiServer> {
-  if (await isJustMeApiRunning()) {
-    return { port: PORT, owned: false, close: () => {} };
-  }
-
   try {
     return await startServer(PORT);
   } catch (error) {

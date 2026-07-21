@@ -25,6 +25,8 @@ Use when working on the Just Me personal todo app: storage, API, UI, MCP, Electr
   - `src/stdio.ts` — tools: list/get/add/update todos, `edit_todo_lines`, list statuses, **list_fields**
   - `src/line-edit.ts` — 1-based inclusive line-range replace/insert/delete for todo markdown
 - `packages/desktop` — Electron main process + installer (`electron-builder` → `release/`)
+  - Copies `packages/web/dist` → `packages/desktop/web-dist` before packaging (`scripts/copy-web-dist.mjs`)
+  - Desktop sets `JUST_ME_WEB_DIST` via `src/env.ts` before API loads
   - Linux: `pnpm build:desktop:linux` → `.deb` + AppImage
   - Windows NSIS: `pnpm build:desktop:win` → `JustMe-*-setup.exe` (cross-build from Linux via `electronuserland/builder:wine` Docker image)
 - Config dir: Linux/macOS `~/.config/just-me`, Windows `%APPDATA%\just-me` (`JUST_ME_CONFIG` / `JUST_ME_CONFIG_DIR`)
