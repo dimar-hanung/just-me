@@ -2,7 +2,7 @@ import type { Field } from "./api";
 import type { ViewColumnId, ViewColumnVisibility, ViewLayout } from "./view-types";
 import { fieldColumnId } from "./view-types";
 
-export type TodoBuiltinColumnId = "code" | "title" | "status" | "content" | "due" | "updated";
+export type TodoBuiltinColumnId = "code" | "title" | "status" | "content" | "start" | "deadline" | "done" | "updated";
 export type TodoColumnId = ViewColumnId;
 
 export type TodoColumnDefinition = {
@@ -22,7 +22,9 @@ const BUILTIN_COLUMNS: Array<{
   { id: "title", label: "Title", table: true, kanban: true, locked: true },
   { id: "status", label: "Status", table: true, kanban: false },
   { id: "content", label: "Notes preview", table: false, kanban: true },
-  { id: "due", label: "Due", table: true, kanban: true },
+  { id: "start", label: "Start", table: true, kanban: true },
+  { id: "deadline", label: "Deadline", table: true, kanban: true },
+  { id: "done", label: "Done", table: true, kanban: true },
   { id: "updated", label: "Updated", table: true, kanban: true },
 ];
 

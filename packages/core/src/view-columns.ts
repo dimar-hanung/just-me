@@ -9,7 +9,9 @@ const BUILTIN_COLUMNS: Array<{
   { id: "title", table: true, kanban: true },
   { id: "status", table: true, kanban: false },
   { id: "content", table: false, kanban: true },
-  { id: "due", table: true, kanban: true },
+  { id: "start", table: true, kanban: true },
+  { id: "deadline", table: true, kanban: true },
+  { id: "done", table: true, kanban: true },
   { id: "updated", table: true, kanban: true },
 ];
 

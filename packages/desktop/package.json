@@ -1,6 +1,6 @@
 {
   "name": "@just-me/desktop",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "description": "Just Me personal todo desktop app",
   "author": "Dimar Hanung <dimarhanung@ecampus.ut.ac.id>",
@@ -12,12 +12,13 @@
     "build:linux": "pnpm run prepare:app && electron-builder --linux deb AppImage",
     "build:win": "pnpm run prepare:app && electron-builder --win nsis",
     "build:all": "pnpm run prepare:app && electron-builder --linux deb AppImage --win nsis",
-    "prepare:app": "pnpm --filter @just-me/core build && pnpm --filter @just-me/api build && pnpm --filter @just-me/web build && node scripts/copy-web-dist.mjs && tsc",
+    "prepare:app": "pnpm --filter @just-me/core build && pnpm --filter @just-me/api build && pnpm --filter @just-me/web build && pnpm --filter @just-me/mcp build && node scripts/copy-web-dist.mjs && node scripts/stage-mcp.mjs && tsc",
     "dev": "tsc && electron .",
     "start": "electron ."
   },
   "dependencies": {
-    "@just-me/api": "workspace:*"
+    "@just-me/api": "workspace:*",
+    "@just-me/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
@@ -39,7 +40,15 @@
       "../api/dist/**/*",
       "../core/dist/**/*"
     ],
-    "extraResources": [],
+    "extraResources": [
+      {
+        "from": "resources/mcp",
+        "to": "mcp",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "linux": {
       "target": [
         "deb",

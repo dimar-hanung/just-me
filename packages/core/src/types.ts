@@ -87,7 +87,9 @@ export type Todo = {
   content: string;
   statusId: string;
   statusName?: string;
-  dueAt: string | null;
+  startAt: string | null;
+  deadlineAt: string | null;
+  doneAt: string | null;
   fieldValues: TodoFieldValues;
   createdAt: string;
   updatedAt: string;
@@ -109,7 +111,9 @@ export type ViewBuiltinField =
   | "status"
   | "title"
   | "code"
-  | "due_at"
+  | "start_at"
+  | "deadline_at"
+  | "done_at"
   | "created_at"
   | "updated_at";
 
@@ -125,7 +129,8 @@ export type ViewFilterOp =
   | "is_not_empty"
   | "before"
   | "after"
-  | "on";
+  | "on"
+  | "on_or_before_today";
 
 export type ViewFilterRule = {
   field: ViewFieldRef;
@@ -155,7 +160,9 @@ export type ViewColumnId =
   | "title"
   | "status"
   | "content"
-  | "due"
+  | "start"
+  | "deadline"
+  | "done"
   | "updated"
   | `field:${string}`;
 

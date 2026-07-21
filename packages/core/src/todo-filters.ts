@@ -36,6 +36,35 @@ function dayEnd(isoDate: string): string {
   return end.toISOString();
 }
 
+function startOfTomorrowUtc(): string {
+  const now = new Date();
+  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  return tomorrow.toISOString();
+}
+
+function buildDateRuleClause(field: string, op: ViewFilterRule["op"], values: string[]): SqlFragment | null {
+  const column = `t.${field}`;
+  if (op === "is_empty") {
+    return { sql: `${column} IS NULL`, args: [] };
+  }
+  if (op === "is_not_empty") {
+    return { sql: `${column} IS NOT NULL`, args: [] };
+  }
+  if (op === "before" && values[0]) {
+    return { sql: `${column} < ?`, args: [values[0]] };
+  }
+  if (op === "after" && values[0]) {
+    return { sql: `${column} >= ?`, args: [values[0]] };
+  }
+  if (op === "on" && values[0]) {
+    return { sql: `${column} >= ? AND ${column} < ?`, args: [values[0], dayEnd(values[0])] };
+  }
+  if (op === "on_or_before_today") {
+    return { sql: `${column} IS NOT NULL AND ${column} < ?`, args: [startOfTomorrowUtc()] };
+  }
+  return null;
+}
+
 function buildRuleClause(rule: ViewFilterRule): SqlFragment | null {
   const { field, op } = rule;
   const values = asStringArray(rule.value);
@@ -79,24 +108,14 @@ function buildRuleClause(rule: ViewFilterRule): SqlFragment | null {
     return null;
   }
 
-  if (field === "due_at" || field === "created_at" || field === "updated_at") {
-    const column = `t.${field}`;
-    if (op === "is_empty") {
-      return { sql: `${column} IS NULL`, args: [] };
-    }
-    if (op === "is_not_empty") {
-      return { sql: `${column} IS NOT NULL`, args: [] };
-    }
-    if (op === "before" && values[0]) {
-      return { sql: `${column} < ?`, args: [values[0]] };
-    }
-    if (op === "after" && values[0]) {
-      return { sql: `${column} >= ?`, args: [values[0]] };
-    }
-    if (op === "on" && values[0]) {
-      return { sql: `${column} >= ? AND ${column} < ?`, args: [values[0], dayEnd(values[0])] };
-    }
-    return null;
+  if (
+    field === "start_at" ||
+    field === "deadline_at" ||
+    field === "done_at" ||
+    field === "created_at" ||
+    field === "updated_at"
+  ) {
+    return buildDateRuleClause(field, op, values);
   }
 
   if (!field.startsWith("field:")) return null;
@@ -272,8 +291,12 @@ function todoColumn(field: ViewSort["field"]): string | null {
       return "t.title";
     case "code":
       return "t.code";
-    case "due_at":
-      return "t.due_at";
+    case "start_at":
+      return "t.start_at";
+    case "deadline_at":
+      return "t.deadline_at";
+    case "done_at":
+      return "t.done_at";
     case "created_at":
       return "t.created_at";
     case "updated_at":

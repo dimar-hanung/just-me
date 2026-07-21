@@ -55,7 +55,9 @@ async function migrate(client: Client): Promise<void> {
       title TEXT NOT NULL,
       content TEXT NOT NULL DEFAULT '',
       status_id TEXT NOT NULL REFERENCES statuses(id),
-      due_at TEXT,
+      start_at TEXT,
+      deadline_at TEXT,
+      done_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       deleted_at TEXT
@@ -81,6 +83,22 @@ async function migrate(client: Client): Promise<void> {
     } catch {
       // Some SQLite/libSQL builds may not support DROP COLUMN; column is unused.
     }
+  }
+
+  if (await hasColumn(client, "todos", "due_at") && !(await hasColumn(client, "todos", "deadline_at"))) {
+    await client.execute("ALTER TABLE todos RENAME COLUMN due_at TO deadline_at");
+  }
+
+  if (!(await hasColumn(client, "todos", "deadline_at"))) {
+    await client.execute("ALTER TABLE todos ADD COLUMN deadline_at TEXT");
+  }
+
+  if (!(await hasColumn(client, "todos", "start_at"))) {
+    await client.execute("ALTER TABLE todos ADD COLUMN start_at TEXT");
+  }
+
+  if (!(await hasColumn(client, "todos", "done_at"))) {
+    await client.execute("ALTER TABLE todos ADD COLUMN done_at TEXT");
   }
 
   await migrateLegacyTicketCodes(client);
@@ -123,7 +141,8 @@ async function migrate(client: Client): Promise<void> {
     )`,
   ]);
 
-  const { seedDefaultViews } = await import("./views.js");
+  const { migrateViewJson, seedDefaultViews } = await import("./views.js");
+  await migrateViewJson(client);
   await seedDefaultViews(client);
 
   const existing = await client.execute("SELECT COUNT(*) AS count FROM statuses");

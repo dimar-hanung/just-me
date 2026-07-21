@@ -6,6 +6,7 @@ import OnboardingPage from "./pages/OnboardingPage";
 import SettingsPage from "./pages/SettingsPage";
 import TodoDetailPage from "./pages/TodoDetailPage";
 import TrashPage from "./pages/TrashPage";
+import DocsPage from "./pages/DocsPage";
 import Layout from "./components/Layout";
 
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/todos/:id" element={<TodoDetailPage />} />
         <Route path="/trash" element={<TrashPage />} />
+        <Route path="/docs" element={<DocsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>

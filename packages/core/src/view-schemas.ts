@@ -4,7 +4,9 @@ const ViewBuiltinFieldSchema = z.enum([
   "status",
   "title",
   "code",
-  "due_at",
+  "start_at",
+  "deadline_at",
+  "done_at",
   "created_at",
   "updated_at",
 ]);
@@ -25,6 +27,7 @@ const ViewFilterOpSchema = z.enum([
   "before",
   "after",
   "on",
+  "on_or_before_today",
 ]);
 
 export const ViewFilterRuleSchema = z.object({
@@ -51,7 +54,7 @@ export const ViewSortSchema = z.object({
 });
 
 export const ViewColumnIdSchema = z.union([
-  z.enum(["code", "title", "status", "content", "due", "updated"]),
+  z.enum(["code", "title", "status", "content", "start", "deadline", "done", "updated"]),
   z.string().regex(/^field:[0-9a-f-]{36}$/i),
 ]);
 
@@ -64,6 +67,19 @@ export const ViewPageSizeSchema = z.enum(["10", "30", "50", "100", "all"]);
 export const DEFAULT_VIEW_FILTERS = { logic: "and" as const, items: [] };
 
 export const DEFAULT_VIEW_SORTS = [{ field: "updated_at" as const, direction: "desc" as const }];
+
+export const TODAY_VIEW_FILTERS = {
+  logic: "and" as const,
+  items: [
+    { field: "done_at" as const, op: "is_empty" as const },
+    { field: "deadline_at" as const, op: "on_or_before_today" as const },
+  ],
+};
+
+export const TODAY_VIEW_SORTS = [
+  { field: "deadline_at" as const, direction: "asc" as const },
+  { field: "updated_at" as const, direction: "desc" as const },
+];
 
 export function emptyViewFilters() {
   return { logic: "and" as const, items: [] };

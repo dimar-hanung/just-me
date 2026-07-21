@@ -42,7 +42,11 @@ function RuleEditor({
   const kind =
     rule.field === "status"
       ? "status"
-      : rule.field === "due_at" || rule.field === "created_at" || rule.field === "updated_at"
+      : rule.field === "start_at" ||
+          rule.field === "deadline_at" ||
+          rule.field === "done_at" ||
+          rule.field === "created_at" ||
+          rule.field === "updated_at"
         ? "date"
         : rule.field.startsWith("field:")
           ? fields.find((f) => f.id === rule.field.slice("field:".length))?.type ?? "text"

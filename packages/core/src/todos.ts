@@ -16,7 +16,7 @@ import type { Field, Todo, TodoFieldValues, ViewFilters, ViewSort } from "./type
 
 const TODO_SELECT = `
   SELECT t.id, t.code, t.title, t.content, t.status_id, s.name AS status_name,
-         t.due_at, t.created_at, t.updated_at, t.deleted_at
+         t.start_at, t.deadline_at, t.done_at, t.created_at, t.updated_at, t.deleted_at
   FROM todos t
   JOIN statuses s ON s.id = t.status_id
 `;
@@ -29,12 +29,23 @@ function rowToTodo(row: Record<string, unknown>, fieldValues: TodoFieldValues = 
     content: String(row.content ?? ""),
     statusId: String(row.status_id),
     statusName: row.status_name ? String(row.status_name) : undefined,
-    dueAt: row.due_at ? String(row.due_at) : null,
+    startAt: row.start_at ? String(row.start_at) : null,
+    deadlineAt: row.deadline_at ? String(row.deadline_at) : null,
+    doneAt: row.done_at ? String(row.done_at) : null,
     fieldValues,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
     deletedAt: row.deleted_at ? String(row.deleted_at) : null,
   };
+}
+
+async function getStatusName(client: Client, statusId: string): Promise<string | null> {
+  const result = await client.execute({
+    sql: "SELECT name FROM statuses WHERE id = ?",
+    args: [statusId],
+  });
+  const name = result.rows[0]?.name;
+  return typeof name === "string" ? name : null;
 }
 
 async function attachFieldValues(client: Client, todos: Todo[]): Promise<Todo[]> {
@@ -158,7 +169,9 @@ export async function addTodo(
     title: string;
     content?: string;
     statusId?: string;
-    dueAt?: string | null;
+    startAt?: string | null;
+    deadlineAt?: string | null;
+    doneAt?: string | null;
     fieldValues?: TodoFieldValues;
   },
 ): Promise<Todo> {
@@ -167,11 +180,27 @@ export async function addTodo(
   const now = new Date().toISOString();
   const statusId = input.statusId ?? (await getDefaultStatusId(client));
   const content = input.content ?? "";
+  const statusName = await getStatusName(client, statusId);
+  let doneAt = input.doneAt ?? null;
+  if (doneAt === null && statusName === "Done") {
+    doneAt = now;
+  }
 
   await client.execute({
-    sql: `INSERT INTO todos (id, code, title, content, status_id, due_at, created_at, updated_at, deleted_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-    args: [id, code, input.title, content, statusId, input.dueAt ?? null, now, now],
+    sql: `INSERT INTO todos (id, code, title, content, status_id, start_at, deadline_at, done_at, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+    args: [
+      id,
+      code,
+      input.title,
+      content,
+      statusId,
+      input.startAt ?? null,
+      input.deadlineAt ?? null,
+      doneAt,
+      now,
+      now,
+    ],
   });
 
   if (input.fieldValues && Object.keys(input.fieldValues).length > 0) {
@@ -206,7 +235,9 @@ export async function updateTodo(
     title?: string;
     content?: string;
     statusId?: string;
-    dueAt?: string | null;
+    startAt?: string | null;
+    deadlineAt?: string | null;
+    doneAt?: string | null;
     fieldValues?: TodoFieldValues;
   },
 ): Promise<Todo | null> {
@@ -216,12 +247,25 @@ export async function updateTodo(
   const title = patch.title ?? current.title;
   const content = patch.content ?? current.content;
   const statusId = patch.statusId ?? current.statusId;
-  const dueAt = patch.dueAt !== undefined ? patch.dueAt : current.dueAt;
+  let startAt = patch.startAt !== undefined ? patch.startAt : current.startAt;
+  let deadlineAt = patch.deadlineAt !== undefined ? patch.deadlineAt : current.deadlineAt;
+  let doneAt = patch.doneAt !== undefined ? patch.doneAt : current.doneAt;
   const updatedAt = new Date().toISOString();
 
+  const statusChanged = patch.statusId !== undefined && patch.statusId !== current.statusId;
+  if (statusChanged && patch.doneAt === undefined) {
+    const newStatusName = await getStatusName(client, statusId);
+    const oldStatusName = current.statusName ?? (await getStatusName(client, current.statusId));
+    if (newStatusName === "Done" && doneAt === null) {
+      doneAt = updatedAt;
+    } else if (oldStatusName === "Done" && newStatusName !== "Done") {
+      doneAt = null;
+    }
+  }
+
   await client.execute({
-    sql: "UPDATE todos SET title = ?, content = ?, status_id = ?, due_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
-    args: [title, content, statusId, dueAt, updatedAt, id],
+    sql: "UPDATE todos SET title = ?, content = ?, status_id = ?, start_at = ?, deadline_at = ?, done_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL",
+    args: [title, content, statusId, startAt, deadlineAt, doneAt, updatedAt, id],
   });
 
   if (patch.fieldValues) {
@@ -335,16 +379,19 @@ export async function importTodosJson(client: Client, json: string): Promise<voi
 
   for (const todo of payload.todos) {
     const code = todo.code?.trim() ? todo.code : await generateNextTicketCode(client);
+    const legacy = todo as Todo & { dueAt?: string | null };
     await client.execute({
-      sql: `INSERT INTO todos (id, code, title, content, status_id, due_at, created_at, updated_at, deleted_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO todos (id, code, title, content, status_id, start_at, deadline_at, done_at, created_at, updated_at, deleted_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         todo.id,
         code,
         todo.title,
         todo.content ?? "",
         todo.statusId,
-        todo.dueAt,
+        todo.startAt ?? null,
+        todo.deadlineAt ?? legacy.dueAt ?? null,
+        todo.doneAt ?? null,
         todo.createdAt,
         todo.updatedAt,
         todo.deletedAt ?? null,

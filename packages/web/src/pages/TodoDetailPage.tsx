@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api, type Field, type Todo, type TodoFieldValues } from "../api";
@@ -9,6 +9,7 @@ import MarkdownTextarea, {
 } from "../components/MarkdownTextarea";
 import TicketCode from "../components/TicketCode";
 import type { TextCursorPosition } from "../markdown-insert";
+import { dateInputToIso, isoToDateInputValue } from "../todo-date";
 
 type Tab = "write" | "preview";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -35,6 +36,9 @@ export default function TodoDetailPage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [fieldValues, setFieldValues] = useState<TodoFieldValues>({});
+  const [startAt, setStartAt] = useState<string | null>(null);
+  const [deadlineAt, setDeadlineAt] = useState<string | null>(null);
+  const [doneAt, setDoneAt] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(
     locationState?.defaultTab === "write" ? "write" : "preview",
   );
@@ -46,7 +50,17 @@ export default function TodoDetailPage() {
   const savedTitleRef = useRef("");
   const savedContentRef = useRef("");
   const savedFieldValuesRef = useRef<TodoFieldValues>({});
-  const draftRef = useRef({ title: "", content: "", fieldValues: {} as TodoFieldValues });
+  const savedStartAtRef = useRef<string | null>(null);
+  const savedDeadlineAtRef = useRef<string | null>(null);
+  const savedDoneAtRef = useRef<string | null>(null);
+  const draftRef = useRef({
+    title: "",
+    content: "",
+    fieldValues: {} as TodoFieldValues,
+    startAt: null as string | null,
+    deadlineAt: null as string | null,
+    doneAt: null as string | null,
+  });
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fieldSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -58,7 +72,7 @@ export default function TodoDetailPage() {
   const restoreScrollRef = useRef(false);
   const tabRef = useRef(tab);
 
-  draftRef.current = { title, content, fieldValues };
+  draftRef.current = { title, content, fieldValues, startAt, deadlineAt, doneAt };
   tabRef.current = tab;
 
   const fieldValuesEqual = useCallback((a: TodoFieldValues, b: TodoFieldValues) => {
@@ -79,14 +93,32 @@ export default function TodoDetailPage() {
   }, []);
 
   const saveNow = useCallback(
-    async (nextTitle: string, nextContent: string, nextFieldValues?: TodoFieldValues) => {
+    async (
+      nextTitle: string,
+      nextContent: string,
+      nextFieldValues?: TodoFieldValues,
+      nextDates?: {
+        startAt?: string | null;
+        deadlineAt?: string | null;
+        doneAt?: string | null;
+      },
+    ) => {
       if (!id) return;
 
       const valuesToSave = nextFieldValues ?? fieldValues;
+      const datesToSave = {
+        startAt: nextDates?.startAt !== undefined ? nextDates.startAt : startAt,
+        deadlineAt: nextDates?.deadlineAt !== undefined ? nextDates.deadlineAt : deadlineAt,
+        doneAt: nextDates?.doneAt !== undefined ? nextDates.doneAt : doneAt,
+      };
       const contentChanged =
         nextTitle !== savedTitleRef.current || nextContent !== savedContentRef.current;
       const fieldsChanged = !fieldValuesEqual(valuesToSave, savedFieldValuesRef.current);
-      if (!contentChanged && !fieldsChanged) return;
+      const datesChanged =
+        datesToSave.startAt !== savedStartAtRef.current ||
+        datesToSave.deadlineAt !== savedDeadlineAtRef.current ||
+        datesToSave.doneAt !== savedDoneAtRef.current;
+      if (!contentChanged && !fieldsChanged && !datesChanged) return;
 
       setSaveStatus("saving");
       setError("");
@@ -95,6 +127,9 @@ export default function TodoDetailPage() {
           title?: string;
           content?: string;
           fieldValues?: TodoFieldValues;
+          startAt?: string | null;
+          deadlineAt?: string | null;
+          doneAt?: string | null;
         } = {};
         if (contentChanged) {
           patch.title = nextTitle;
@@ -103,13 +138,24 @@ export default function TodoDetailPage() {
         if (fieldsChanged) {
           patch.fieldValues = valuesToSave;
         }
+        if (datesChanged) {
+          patch.startAt = datesToSave.startAt;
+          patch.deadlineAt = datesToSave.deadlineAt;
+          patch.doneAt = datesToSave.doneAt;
+        }
 
         const updated = await api.updateTodo(id, patch);
         savedTitleRef.current = updated.title;
         savedContentRef.current = updated.content;
         savedFieldValuesRef.current = updated.fieldValues ?? {};
+        savedStartAtRef.current = updated.startAt;
+        savedDeadlineAtRef.current = updated.deadlineAt;
+        savedDoneAtRef.current = updated.doneAt;
         setTodo(updated);
         setFieldValues(updated.fieldValues ?? {});
+        setStartAt(updated.startAt);
+        setDeadlineAt(updated.deadlineAt);
+        setDoneAt(updated.doneAt);
         setSaveStatus("saved");
         if (savedFadeTimerRef.current) clearTimeout(savedFadeTimerRef.current);
         savedFadeTimerRef.current = setTimeout(() => setSaveStatus("idle"), 2000);
@@ -118,7 +164,7 @@ export default function TodoDetailPage() {
         setError(err instanceof Error ? err.message : "Failed to save");
       }
     },
-    [id, fieldValues, fieldValuesEqual],
+    [id, fieldValues, fieldValuesEqual, startAt, deadlineAt, doneAt],
   );
 
   useEffect(() => {
@@ -141,9 +187,15 @@ export default function TodoDetailPage() {
         setTitle(found.title);
         setContent(found.content ?? "");
         setFieldValues(found.fieldValues ?? {});
+        setStartAt(found.startAt);
+        setDeadlineAt(found.deadlineAt);
+        setDoneAt(found.doneAt);
         savedTitleRef.current = found.title;
         savedContentRef.current = found.content ?? "";
         savedFieldValuesRef.current = found.fieldValues ?? {};
+        savedStartAtRef.current = found.startAt;
+        savedDeadlineAtRef.current = found.deadlineAt;
+        savedDoneAtRef.current = found.doneAt;
       })
       .catch((err) => {
         setError(err instanceof Error ? err.message : "Failed to load todo");
@@ -180,20 +232,53 @@ export default function TodoDetailPage() {
   }, [fieldValues, loading, todo, title, content, saveNow, fieldValuesEqual]);
 
   useEffect(() => {
+    if (loading || !todo) return;
+    if (
+      startAt === savedStartAtRef.current &&
+      deadlineAt === savedDeadlineAtRef.current &&
+      doneAt === savedDoneAtRef.current
+    ) {
+      return;
+    }
+
+    if (fieldSaveTimerRef.current) clearTimeout(fieldSaveTimerRef.current);
+    fieldSaveTimerRef.current = setTimeout(() => {
+      void saveNow(title, content, fieldValues, { startAt, deadlineAt, doneAt });
+    }, 400);
+
+    return () => {
+      if (fieldSaveTimerRef.current) clearTimeout(fieldSaveTimerRef.current);
+    };
+  }, [startAt, deadlineAt, doneAt, loading, todo, title, content, fieldValues, saveNow]);
+
+  useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       if (fieldSaveTimerRef.current) clearTimeout(fieldSaveTimerRef.current);
       if (savedFadeTimerRef.current) clearTimeout(savedFadeTimerRef.current);
-      const { title: draftTitle, content: draftContent, fieldValues: draftFieldValues } =
-        draftRef.current;
+      const {
+        title: draftTitle,
+        content: draftContent,
+        fieldValues: draftFieldValues,
+        startAt: draftStartAt,
+        deadlineAt: draftDeadlineAt,
+        doneAt: draftDoneAt,
+      } = draftRef.current;
       const contentChanged =
         draftTitle !== savedTitleRef.current || draftContent !== savedContentRef.current;
       const fieldsChanged = !fieldValuesEqual(draftFieldValues, savedFieldValuesRef.current);
-      if (id && (contentChanged || fieldsChanged)) {
+      const datesChanged =
+        draftStartAt !== savedStartAtRef.current ||
+        draftDeadlineAt !== savedDeadlineAtRef.current ||
+        draftDoneAt !== savedDoneAtRef.current;
+      if (id && (contentChanged || fieldsChanged || datesChanged)) {
         const patch: {
           title?: string;
           content?: string;
           fieldValues?: TodoFieldValues;
+          startAt?: string | null;
+          deadlineAt?: string | null;
+          doneAt?: string | null;
         } = {};
         if (contentChanged) {
           patch.title = draftTitle;
@@ -201,6 +286,11 @@ export default function TodoDetailPage() {
         }
         if (fieldsChanged) {
           patch.fieldValues = draftFieldValues;
+        }
+        if (datesChanged) {
+          patch.startAt = draftStartAt;
+          patch.deadlineAt = draftDeadlineAt;
+          patch.doneAt = draftDoneAt;
         }
         void api.updateTodo(id, patch);
       }
@@ -315,9 +405,36 @@ export default function TodoDetailPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [toggleTab]);
 
+  function handleDateChange(field: "startAt" | "deadlineAt" | "doneAt", value: string) {
+    const iso = dateInputToIso(value);
+    if (field === "startAt") setStartAt(iso);
+    if (field === "deadlineAt") setDeadlineAt(iso);
+    if (field === "doneAt") setDoneAt(iso);
+  }
+
   function handleFieldChange(fieldId: string, value: string | string[]) {
     setFieldValues((current) => ({ ...current, [fieldId]: value }));
   }
+
+  const handleSaveToPdf = useCallback(() => {
+    if (loading || !todo) return;
+
+    const previousTitle = document.title;
+    const printTitle = (() => {
+      const name = title.trim() || "Untitled";
+      return todo.code ? `${todo.code} — ${name}` : name;
+    })();
+
+    document.title = printTitle;
+
+    const restoreAfterPrint = () => {
+      document.title = previousTitle;
+      window.removeEventListener("afterprint", restoreAfterPrint);
+    };
+
+    window.addEventListener("afterprint", restoreAfterPrint);
+    window.print();
+  }, [loading, todo, title]);
 
   const shortcutHint = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
     ? "⌘E"
@@ -359,11 +476,43 @@ export default function TodoDetailPage() {
           className="todo-detail-title"
           aria-label="Todo title"
         />
+        <div className="todo-detail-dates">
+          <label className="todo-detail-date-field">
+            <span className="todo-detail-date-label">Start At</span>
+            <input
+              type="date"
+              className="todo-detail-date-input"
+              value={isoToDateInputValue(startAt)}
+              onChange={(e) => handleDateChange("startAt", e.target.value)}
+              aria-label="Start at"
+            />
+          </label>
+          <label className="todo-detail-date-field">
+            <span className="todo-detail-date-label">Deadline At</span>
+            <input
+              type="date"
+              className="todo-detail-date-input"
+              value={isoToDateInputValue(deadlineAt)}
+              onChange={(e) => handleDateChange("deadlineAt", e.target.value)}
+              aria-label="Deadline at"
+            />
+          </label>
+          <label className="todo-detail-date-field">
+            <span className="todo-detail-date-label">Done At</span>
+            <input
+              type="date"
+              className="todo-detail-date-input"
+              value={isoToDateInputValue(doneAt)}
+              onChange={(e) => handleDateChange("doneAt", e.target.value)}
+              aria-label="Done at"
+            />
+          </label>
+        </div>
         <FieldValuesSection fields={fields} values={fieldValues} onChange={handleFieldChange} />
       </header>
 
       {error && saveStatus === "error" && (
-        <div className="mb-4 rounded-lg border border-red-900 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+        <div className="no-print mb-4 rounded-lg border border-red-900 bg-red-950/50 px-3 py-2 text-sm text-red-300">
           {error}
         </div>
       )}
@@ -391,13 +540,25 @@ export default function TodoDetailPage() {
             Preview
           </button>
         </div>
-        <p className="todo-detail-tab-tip">
-          Tip: <kbd>{shortcutHint}</kbd> toggles Write / Preview
-        </p>
+        <div className="todo-detail-tabs-actions">
+          <button
+            type="button"
+            className="btn-secondary no-print inline-flex items-center gap-1.5"
+            onClick={handleSaveToPdf}
+            disabled={loading || !todo}
+            title="Open print dialog to save as PDF"
+          >
+            <Printer className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+            Save to PDF
+          </button>
+          <p className="todo-detail-tab-tip">
+            Tip: <kbd>{shortcutHint}</kbd> toggles Write / Preview
+          </p>
+        </div>
       </div>
 
       <div className="todo-detail-body">
-        <div className="todo-detail-panel" hidden={tab !== "write"}>
+        <div className="todo-detail-panel todo-detail-panel--write" hidden={tab !== "write"}>
           <MarkdownTextarea
             ref={textareaRef}
             value={content}
@@ -409,7 +570,7 @@ export default function TodoDetailPage() {
             aria-label="Markdown content"
           />
         </div>
-        <div className="todo-detail-panel" hidden={tab !== "preview"}>
+        <div className="todo-detail-panel todo-detail-panel--preview" hidden={tab !== "preview"}>
           <MarkdownContent source={content} onSourceChange={setContent} />
         </div>
       </div>

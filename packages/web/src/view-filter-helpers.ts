@@ -13,7 +13,9 @@ const BUILTIN_FIELDS: Array<{ field: ViewFieldRef; label: string; kind: "status"
   { field: "status", label: "Status", kind: "status" },
   { field: "title", label: "Title", kind: "text" },
   { field: "code", label: "Code", kind: "text" },
-  { field: "due_at", label: "Due", kind: "date" },
+  { field: "start_at", label: "Start", kind: "date" },
+  { field: "deadline_at", label: "Deadline", kind: "date" },
+  { field: "done_at", label: "Done", kind: "date" },
   { field: "created_at", label: "Created", kind: "date" },
   { field: "updated_at", label: "Updated", kind: "date" },
 ];
@@ -39,7 +41,15 @@ export function getFieldKind(
   fields: Field[],
 ): "status" | "text" | "date" | "tag_single" | "tag_multi" {
   if (fieldRef === "status") return "status";
-  if (fieldRef === "due_at" || fieldRef === "created_at" || fieldRef === "updated_at") return "date";
+  if (
+    fieldRef === "start_at" ||
+    fieldRef === "deadline_at" ||
+    fieldRef === "done_at" ||
+    fieldRef === "created_at" ||
+    fieldRef === "updated_at"
+  ) {
+    return "date";
+  }
   if (fieldRef === "title" || fieldRef === "code") return "text";
 
   if (fieldRef.startsWith("field:")) {
@@ -71,6 +81,7 @@ export function operatorsForField(
       { op: "on", label: "Is on" },
       { op: "before", label: "Is before" },
       { op: "after", label: "Is after" },
+      { op: "on_or_before_today", label: "On or before today" },
       { op: "is_empty", label: "Is empty" },
       { op: "is_not_empty", label: "Is not empty" },
     ];
@@ -103,7 +114,7 @@ export function defaultRule(field: ViewFieldRef, fields: Field[]): ViewFilterRul
 }
 
 function needsValue(op: ViewFilterOp): boolean {
-  return op !== "is_empty" && op !== "is_not_empty";
+  return op !== "is_empty" && op !== "is_not_empty" && op !== "on_or_before_today";
 }
 
 export function newFilterRule(fields: Field[]): ViewFilterRule {
@@ -192,6 +203,7 @@ export function labelForOp(op: ViewFilterOp): string {
     before: "is before",
     after: "is after",
     on: "is on",
+    on_or_before_today: "on or before today",
   };
   return map[op];
 }

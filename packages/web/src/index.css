@@ -1810,6 +1810,39 @@ input[type="checkbox"] {
   box-shadow: none;
 }
 
+.todo-detail-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+}
+
+.todo-detail-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 9rem;
+}
+
+.todo-detail-date-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgb(var(--fg-muted));
+}
+
+.todo-detail-date-input {
+  border: 1px solid rgb(var(--border));
+  border-radius: 0.375rem;
+  background: rgb(var(--surface));
+  color: rgb(var(--fg));
+  padding: 0.375rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.todo-detail-date-input:focus {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 1px;
+}
+
 .todo-detail-tabs-row {
   display: flex;
   align-items: flex-end;
@@ -2671,4 +2704,181 @@ input[type="checkbox"] {
 
 .view-sort-action--danger:hover:not(:disabled) {
   color: rgb(var(--danger, 239 68 68));
+}
+
+.todo-detail-tabs-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+@media print {
+  @page {
+    margin: 1.5cm;
+  }
+
+  :root,
+  .dark {
+    --bg: 255 255 255;
+    --fg: 24 24 27;
+    --fg-muted: 113 113 122;
+    --fg-subtle: 82 82 91;
+    --border: 228 228 231;
+    --border-strong: 212 212 216;
+    --surface: 255 255 255;
+    --surface-muted: 244 244 245;
+    --surface-elevated: 255 255 255;
+    --accent: 225 29 72;
+  }
+
+  *,
+  *::before,
+  *::after {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #18181b !important;
+  }
+
+  .sidebar,
+  .todo-detail-back,
+  .todo-detail-tabs-row,
+  .todo-detail-footer,
+  .no-print,
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .page-container {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .todo-detail {
+    min-height: auto !important;
+  }
+
+  .todo-detail-header {
+    margin-top: 0;
+    margin-bottom: 1rem;
+  }
+
+  .todo-detail-title {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #18181b !important;
+    -webkit-text-fill-color: #18181b;
+  }
+
+  .todo-detail-status {
+    background: rgb(244 63 94 / 0.12) !important;
+    color: #be123c !important;
+  }
+
+  .ticket-code-btn,
+  .kanban-card-code {
+    background: #f4f4f5 !important;
+    color: #52525b !important;
+  }
+
+  .todo-detail-fields {
+    break-inside: avoid;
+  }
+
+  .field-value-input,
+  .field-value-select,
+  .field-dropdown-trigger {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    appearance: none;
+    -webkit-appearance: none;
+    color: #18181b !important;
+  }
+
+  .field-dropdown-chevron {
+    display: none !important;
+  }
+
+  .todo-detail-body,
+  .todo-detail-textarea {
+    min-height: auto !important;
+  }
+
+  .todo-detail-panel--write,
+  .todo-detail-panel--write[hidden] {
+    display: none !important;
+  }
+
+  .todo-detail-panel--preview,
+  .todo-detail-panel--preview[hidden] {
+    display: block !important;
+  }
+
+  .markdown-prose {
+    color: #18181b !important;
+  }
+
+  .markdown-prose a {
+    color: #be123c !important;
+    text-decoration: underline;
+  }
+
+  .markdown-prose pre {
+    background: #f4f4f5 !important;
+    border: 1px solid #e4e4e7 !important;
+  }
+
+  .markdown-prose code {
+    background: #f4f4f5 !important;
+  }
+
+  .markdown-prose blockquote {
+    border-left-color: #e4e4e7 !important;
+    color: #52525b !important;
+  }
+
+  .markdown-prose th,
+  .markdown-prose td {
+    border-color: #e4e4e7 !important;
+  }
+
+  .markdown-prose img {
+    max-width: 100% !important;
+    break-inside: avoid;
+  }
+}
+
+.docs-code-block {
+  background: rgb(var(--surface-muted) / 0.35);
+}
+
+.docs-code-pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  color: rgb(var(--fg));
+  tab-size: 2;
+}
+
+.docs-code-pre code {
+  font-family: inherit;
+}
+
+.docs-code-copy {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
 }

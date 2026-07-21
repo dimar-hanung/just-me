@@ -54,6 +54,7 @@ import {
   type ViewSort,
 } from "@just-me/core";
 import { requireOnboarding, withDb } from "./middleware.js";
+import { resolveMcpSetup } from "./mcp-status.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFile } from "node:fs/promises";
@@ -77,15 +78,24 @@ function getGoogleRedirectUri(): string {
   return `http://127.0.0.1:${resolveApiPort()}/api/onboarding/google/callback`;
 }
 
+async function withMcpHealthFields<T extends Record<string, unknown>>(payload: T) {
+  const mcp = await resolveMcpSetup();
+  return {
+    ...payload,
+    mcpStatus: mcp.status,
+    mcpStdioPath: mcp.stdioPath,
+  };
+}
+
 app.get("/api/health", async (c) => {
   const config = await loadConfig();
   if (!config.storage) {
-    return c.json({
+    return c.json(await withMcpHealthFields({
       app: "just-me",
       ok: false,
       onboardingComplete: config.onboardingComplete,
       storage: null,
-    });
+    }));
   }
   try {
     await testStorageConnection(config);
@@ -99,7 +109,7 @@ app.get("/api/health", async (c) => {
         r2Reachable = false;
       }
     }
-    return c.json({
+    return c.json(await withMcpHealthFields({
       app: "just-me",
       ok: true,
       onboardingComplete: config.onboardingComplete,
@@ -107,16 +117,30 @@ app.get("/api/health", async (c) => {
       driveConnected: isDriveConnected(config),
       r2Configured,
       r2Reachable,
-    });
+    }));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Storage unreachable";
-    return c.json({
+    return c.json(await withMcpHealthFields({
       app: "just-me",
       ok: false,
       error: message,
       onboardingComplete: config.onboardingComplete,
-    }, 503);
+      storage: config.storage.mode,
+    }), 503);
   }
+});
+
+app.get("/api/mcp-setup", async (c) => {
+  const mcp = await resolveMcpSetup();
+  return c.json({
+    app: "just-me",
+    available: mcp.available,
+    status: mcp.status,
+    stdioPath: mcp.stdioPath,
+    configPath: mcp.configPath,
+    cursorConfig: mcp.cursorConfig,
+    requiresNode: true,
+  });
 });
 
 app.get("/api/onboarding", async (c) => {
@@ -599,7 +623,9 @@ api.post("/todos", withDb, async (c) => {
     title: body.title,
     content: body.content,
     statusId: body.statusId,
-    dueAt: body.dueAt ?? null,
+    startAt: body.startAt ?? null,
+    deadlineAt: body.deadlineAt ?? null,
+    doneAt: body.doneAt ?? null,
     fieldValues: body.fieldValues,
   });
   return c.json(todo, 201);
@@ -614,7 +640,9 @@ api.patch("/todos/:id", withDb, async (c) => {
     title: body.title,
     content: body.content,
     statusId: body.statusId,
-    dueAt: body.dueAt,
+    startAt: body.startAt,
+    deadlineAt: body.deadlineAt,
+    doneAt: body.doneAt,
     fieldValues: body.fieldValues,
   });
   if (!todo) return c.json({ error: "Not found" }, 404);

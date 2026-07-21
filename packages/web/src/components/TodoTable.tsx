@@ -55,7 +55,9 @@ export default function TodoTable({
                 {field.name}
               </th>
             ))}
-            {visibleColumns.has("due") && <th scope="col">Due</th>}
+            {visibleColumns.has("start") && <th scope="col">Start</th>}
+            {visibleColumns.has("deadline") && <th scope="col">Deadline</th>}
+            {visibleColumns.has("done") && <th scope="col">Done</th>}
             {visibleColumns.has("updated") && <th scope="col">Updated</th>}
             <th scope="col">
               <span className="sr-only">Actions</span>
@@ -121,8 +123,14 @@ export default function TodoTable({
                     />
                   </td>
                 ))}
-                {visibleColumns.has("due") && (
-                  <td className="todo-table-date">{formatTodoDate(todo.dueAt)}</td>
+                {visibleColumns.has("start") && (
+                  <td className="todo-table-date">{formatTodoDate(todo.startAt)}</td>
+                )}
+                {visibleColumns.has("deadline") && (
+                  <td className="todo-table-date">{formatTodoDate(todo.deadlineAt)}</td>
+                )}
+                {visibleColumns.has("done") && (
+                  <td className="todo-table-date">{formatTodoDate(todo.doneAt)}</td>
                 )}
                 {visibleColumns.has("updated") && (
                   <td className="todo-table-date">{formatTodoDate(todo.updatedAt)}</td>

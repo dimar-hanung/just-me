@@ -15,7 +15,9 @@ Table `views`:
 | `page_size` | `10`, `30`, `50`, `100`, or `all` |
 | `sort_order` | Tab order |
 
-Seeded on migration: **All todos** (table) and **Board** (kanban).
+Seeded on migration: **All todos** (table), **Today** (table), and **Board** (kanban).
+
+**Today** view filters: `done_at` is empty AND `deadline_at` on_or_before_today (open tasks due today or overdue).
 
 ## Filter JSON
 
@@ -26,7 +28,7 @@ type ViewFilters = {
 };
 
 type ViewFilterRule = {
-  field: "status" | "title" | "code" | "due_at" | "created_at" | "updated_at" | `field:${uuid}`;
+  field: "status" | "title" | "code" | "start_at" | "deadline_at" | "done_at" | "created_at" | "updated_at" | `field:${uuid}`;
   op: ViewFilterOp;
   value?: string | string[];
 };
@@ -44,7 +46,7 @@ type ViewFilterGroup = {
 | Status | `is_any_of`, `is_none_of` |
 | tag_single / tag_multi | `is_any_of`, `is_none_of`, `is_all_of` (multi only), `is_empty`, `is_not_empty` |
 | text / title / code | `contains`, `not_contains`, `is_empty`, `is_not_empty` |
-| due_at / created_at / updated_at | `on`, `before`, `after`, `is_empty`, `is_not_empty` |
+| start_at / deadline_at / done_at / created_at / updated_at | `on`, `before`, `after`, `on_or_before_today`, `is_empty`, `is_not_empty` |
 
 Groups combine their rules with the group's `logic`. Top-level `items` combine with root `logic`.
 

@@ -31,7 +31,7 @@ Run this skill end-to-end. Do not improvise partial steps.
 - Prior Docker/Wine cross-builds often leave **root-owned** files under `packages/web/dist`, `packages/desktop/web-dist`, `node_modules`, and `release/` → builds fail with `EACCES`. Fix with [scripts/fix-build-permissions.sh](scripts/fix-build-permissions.sh) before building.
 - Linux build runs locally: `pnpm build:desktop:linux`
 - Windows `.exe` cross-build from Linux uses Docker + Wine (see Step 5 below)
-- `prepare:app` rebuilds web + copies to `web-dist`; installers always use fresh assets even if committed `web-dist` is stale
+- `prepare:app` rebuilds web + MCP bundle, copies to `web-dist` and `resources/mcp`; installers always use fresh assets even if committed copies are stale
 - After a release build, `web-dist` hashes may differ from what was committed — optional follow-up commit; not required for correct installers
 
 ---

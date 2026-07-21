@@ -1,4 +1,5 @@
 import "./env.js";
+import { configureMcpEnv } from "./mcp.js";
 import { app, BrowserWindow, dialog } from "electron";
 import { DEFAULT_API_PORT, startServer, type ApiServer } from "@just-me/api";
 
@@ -92,6 +93,7 @@ if (gotSingleInstanceLock) {
 }
 
 app.whenReady().then(async () => {
+  configureMcpEnv();
   server = await ensureApiServer();
   await createWindow();
 

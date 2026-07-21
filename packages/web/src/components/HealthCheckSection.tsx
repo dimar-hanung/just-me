@@ -6,6 +6,7 @@ import {
   ImagePlus,
   RefreshCw,
   Server,
+  Terminal,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -49,6 +50,18 @@ function storageLabel(storage: HealthResponse["storage"]): string {
   if (storage === "local") return "Local SQLite";
   if (storage === "turso") return "Turso";
   return "Not configured";
+}
+
+function mcpHealthLabel(status: HealthResponse["mcpStatus"]): string {
+  if (status === "ready") return "Ready";
+  if (status === "needs_onboarding") return "Needs onboarding";
+  return "Not bundled";
+}
+
+function mcpHealthOk(status: HealthResponse["mcpStatus"]): boolean | null {
+  if (status === "ready") return true;
+  if (status === "needs_onboarding") return false;
+  return null;
 }
 
 export default function HealthCheckSection() {
@@ -161,6 +174,12 @@ export default function HealthCheckSection() {
               label="Onboarding"
               value={health.onboardingComplete ? "Complete" : "Incomplete"}
               ok={health.onboardingComplete}
+            />
+            <StatusRow
+              icon={Terminal}
+              label="MCP"
+              value={mcpHealthLabel(health.mcpStatus)}
+              ok={mcpHealthOk(health.mcpStatus)}
             />
             {health.storage && (
               <StatusRow

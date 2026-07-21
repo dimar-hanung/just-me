@@ -3,6 +3,8 @@ import { defaultViewColumns } from "./view-columns.js";
 import {
   DEFAULT_VIEW_FILTERS,
   DEFAULT_VIEW_SORTS,
+  TODAY_VIEW_FILTERS,
+  TODAY_VIEW_SORTS,
   ViewColumnVisibilitySchema,
   ViewFiltersSchema,
   ViewLayoutSchema,
@@ -218,6 +220,65 @@ export async function reorderViews(client: Client, ids: string[]): Promise<TodoV
   return listViews(client);
 }
 
+function rewriteViewJsonText(raw: string): string {
+  return raw
+    .replaceAll('"due_at"', '"deadline_at"')
+    .replaceAll('"due"', '"deadline"');
+}
+
+export async function migrateViewJson(client: Client): Promise<void> {
+  const result = await client.execute(
+    "SELECT id, filters_json, sorts_json, columns_json FROM views",
+  );
+
+  for (const row of result.rows) {
+    const id = String(row.id);
+    const filtersJson = rewriteViewJsonText(String(row.filters_json ?? ""));
+    const sortsJson = rewriteViewJsonText(String(row.sorts_json ?? ""));
+    const columnsJson = rewriteViewJsonText(String(row.columns_json ?? ""));
+
+    if (
+      filtersJson !== String(row.filters_json ?? "") ||
+      sortsJson !== String(row.sorts_json ?? "") ||
+      columnsJson !== String(row.columns_json ?? "")
+    ) {
+      await client.execute({
+        sql: "UPDATE views SET filters_json = ?, sorts_json = ?, columns_json = ? WHERE id = ?",
+        args: [filtersJson, sortsJson, columnsJson, id],
+      });
+    }
+  }
+
+  const todayResult = await client.execute({
+    sql: "SELECT id FROM views WHERE name = ? LIMIT 1",
+    args: ["Today"],
+  });
+  if (todayResult.rows.length > 0) return;
+
+  const now = new Date().toISOString();
+  const max = await client.execute("SELECT MAX(sort_order) AS max_order FROM views");
+  const sortOrder = Number(max.rows[0]?.max_order ?? -1) + 1;
+  const todayId = crypto.randomUUID();
+  const tableColumns = defaultViewColumns("table");
+
+  await client.execute({
+    sql: `INSERT INTO views (id, name, layout, filters_json, sorts_json, columns_json, page_size, sort_order, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      todayId,
+      "Today",
+      "table",
+      JSON.stringify(TODAY_VIEW_FILTERS),
+      JSON.stringify(TODAY_VIEW_SORTS),
+      JSON.stringify(tableColumns),
+      "30",
+      sortOrder,
+      now,
+      now,
+    ],
+  });
+}
+
 export async function seedDefaultViews(client: Client): Promise<void> {
   const countResult = await client.execute("SELECT COUNT(*) AS count FROM views");
   const count = Number(countResult.rows[0]?.count ?? 0);
@@ -226,6 +287,7 @@ export async function seedDefaultViews(client: Client): Promise<void> {
   const now = new Date().toISOString();
   const tableId = crypto.randomUUID();
   const boardId = crypto.randomUUID();
+  const todayId = crypto.randomUUID();
 
   const tableColumns = defaultViewColumns("table");
   const boardColumns = defaultViewColumns("kanban");
@@ -251,6 +313,22 @@ export async function seedDefaultViews(client: Client): Promise<void> {
       sql: `INSERT INTO views (id, name, layout, filters_json, sorts_json, columns_json, page_size, sort_order, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
+        todayId,
+        "Today",
+        "table",
+        JSON.stringify(TODAY_VIEW_FILTERS),
+        JSON.stringify(TODAY_VIEW_SORTS),
+        JSON.stringify(tableColumns),
+        "30",
+        1,
+        now,
+        now,
+      ],
+    },
+    {
+      sql: `INSERT INTO views (id, name, layout, filters_json, sorts_json, columns_json, page_size, sort_order, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
         boardId,
         "Board",
         "kanban",
@@ -258,7 +336,7 @@ export async function seedDefaultViews(client: Client): Promise<void> {
         JSON.stringify(DEFAULT_VIEW_SORTS),
         JSON.stringify(boardColumns),
         "30",
-        1,
+        2,
         now,
         now,
       ],

@@ -32,7 +32,9 @@ export type Todo = {
   content: string;
   statusId: string;
   statusName?: string;
-  dueAt: string | null;
+  startAt: string | null;
+  deadlineAt: string | null;
+  doneAt: string | null;
   fieldValues: TodoFieldValues;
   createdAt: string;
   updatedAt: string;
@@ -79,7 +81,27 @@ export type HealthResponse = {
   driveConnected?: boolean;
   r2Configured?: boolean;
   r2Reachable?: boolean | null;
+  mcpStatus?: "ready" | "missing" | "needs_onboarding";
+  mcpStdioPath?: string | null;
   error?: string;
+};
+
+export type McpSetupResponse = {
+  app: "just-me";
+  available: boolean;
+  status: "ready" | "missing" | "needs_onboarding";
+  stdioPath: string | null;
+  configPath: string;
+  cursorConfig: {
+    mcpServers: {
+      "just-me-todos": {
+        command: "node";
+        args: [string];
+        env: { JUST_ME_CONFIG: string };
+      };
+    };
+  } | null;
+  requiresNode: true;
 };
 
 export type R2Settings = {
@@ -123,6 +145,14 @@ async function fetchHealth(): Promise<HealthResponse> {
   }
 
   return data as HealthResponse;
+}
+
+async function fetchMcpSetup(): Promise<McpSetupResponse> {
+  const data = await request<McpSetupResponse>("/api/mcp-setup");
+  if (data.app !== "just-me") {
+    throw new Error("Invalid MCP setup response from API.");
+  }
+  return data;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -205,6 +235,7 @@ async function listTodos(params?: ListTodosParams): Promise<Todo[] | ListTodosPa
 
 export const api = {
   health: fetchHealth,
+  mcpSetup: fetchMcpSetup,
   onboarding: () => request<OnboardingState>("/api/onboarding"),
   setStorage: (body: Record<string, unknown>) =>
     request<{ ok: boolean }>("/api/onboarding/storage", { method: "PUT", body: JSON.stringify(body) }),
@@ -291,7 +322,7 @@ export const api = {
   updateTodo: (
     id: string,
     patch: Partial<
-      Pick<Todo, "title" | "content" | "statusId" | "dueAt"> & {
+      Pick<Todo, "title" | "content" | "statusId" | "startAt" | "deadlineAt" | "doneAt"> & {
         fieldValues?: TodoFieldValues;
       }
     >,

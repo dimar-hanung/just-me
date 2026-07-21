@@ -57,6 +57,9 @@ importers:
       '@just-me/api':
         specifier: workspace:*
         version: link:../api
+      '@just-me/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^22.10.2
@@ -86,6 +89,9 @@ importers:
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.1
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
       tsx:
         specifier: ^4.19.2
         version: 4.23.1

@@ -25,7 +25,9 @@ function defaultColumnsForLayout(layout: ViewLayout, fields: Field[]): ViewColum
     { id: "title", table: true, kanban: true, defaultKanban: true },
     { id: "status", table: true, kanban: false },
     { id: "content", table: false, kanban: true, defaultKanban: true },
-    { id: "due", table: true, kanban: true },
+    { id: "start", table: true, kanban: true },
+    { id: "deadline", table: true, kanban: true },
+    { id: "done", table: true, kanban: true },
     { id: "updated", table: true, kanban: true },
   ];
 
@@ -41,6 +43,15 @@ function defaultColumnsForLayout(layout: ViewLayout, fields: Field[]): ViewColum
   }
 
   return columns;
+}
+
+function migrateLegacyColumnKeys(columns: Partial<Record<string, boolean>>): ViewColumnVisibility {
+  const next: ViewColumnVisibility = {};
+  for (const [key, visible] of Object.entries(columns)) {
+    const id = key === "due" ? "deadline" : key;
+    next[id as keyof ViewColumnVisibility] = visible;
+  }
+  return next;
 }
 
 export async function migrateLegacyViewPrefs(
@@ -76,7 +87,7 @@ export async function migrateLegacyViewPrefs(
 
   if (tableView) {
     const patch: Partial<Pick<TodoView, "columns" | "pageSize">> = {};
-    if (columns?.table) patch.columns = columns.table as ViewColumnVisibility;
+    if (columns?.table) patch.columns = migrateLegacyColumnKeys(columns.table);
     if (viewMode === "table" && pageSize) patch.pageSize = pageSize;
     if (Object.keys(patch).length > 0) {
       const updated = await updateView(tableView.id, patch);
@@ -87,7 +98,7 @@ export async function migrateLegacyViewPrefs(
 
   if (boardView && boardView.id !== tableView?.id) {
     const patch: Partial<Pick<TodoView, "layout" | "columns" | "pageSize">> = {};
-    if (columns?.kanban) patch.columns = columns.kanban as ViewColumnVisibility;
+    if (columns?.kanban) patch.columns = migrateLegacyColumnKeys(columns.kanban);
     if (viewMode === "kanban" && pageSize) patch.pageSize = pageSize;
     if (Object.keys(patch).length > 0) {
       const updated = await updateView(boardView.id, patch);

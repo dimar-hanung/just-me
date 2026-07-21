@@ -61,7 +61,7 @@ MCP (after onboarding):
 pnpm dev:mcp
 ```
 
-See `packages/mcp/README.md` for Cursor config.
+For Cursor and general MCP setup, open **Docs** in the app (`/docs`) and use **Copy Cursor MCP config**. Tool reference: [`packages/mcp/README.md`](packages/mcp/README.md).
 
 ## Install (desktop)
 
@@ -71,14 +71,18 @@ See `packages/mcp/README.md` for Cursor config.
 2. Run the installer and follow the prompts (choose install folder if you like).
 3. Launch **Just Me** from the Start menu or desktop shortcut.
 4. Complete onboarding (local SQLite or Turso; optional Google Drive).
+5. Open **Docs** → **Copy Cursor MCP config** and paste into Cursor's `mcp.json` (Node.js 20+ required).
 
-Config and the default local database live under `%APPDATA%\just-me\` (usually `C:\Users\<you>\AppData\Roaming\just-me\`).
+Config, the MCP mirror, and the default local database live under `%APPDATA%\just-me\` (usually `C:\Users\<you>\AppData\Roaming\just-me\`). MCP stdio entry: `%APPDATA%\just-me\mcp\stdio.js`.
 
 ### Linux
 
 1. Download the `.AppImage` or `.deb` from [Releases](https://github.com/dimar-hanung/just-me/releases).
 2. AppImage: `chmod +x JustMe-*.AppImage && ./JustMe-*.AppImage`
 3. Debian/Ubuntu: `sudo apt install ./JustMe-*-amd64.deb`
+4. Complete onboarding, then use **Docs** → **Copy Cursor MCP config** for Cursor (Node.js 20+ required).
+
+MCP is mirrored to `~/.config/just-me/mcp/stdio.js` (stable path for AppImage).
 
 ## Build installer
 
@@ -141,5 +145,5 @@ Attachments are stored in R2; markdown in the todo references them via `/api/upl
 ## Architecture
 
 - **Electron** starts **Hono** on `127.0.0.1:7841` and opens a BrowserWindow
-- **MCP** is a separate stdio process used by Cursor
+- **MCP** ships in the desktop installer (mirrored to config dir); Cursor starts it as a separate stdio Node process
 - **Backup** is manual via Settings → Backup now

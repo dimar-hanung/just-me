@@ -94,15 +94,19 @@ async function main() {
       title: z.string(),
       content: z.string().optional(),
       status_id: z.string().optional(),
-      due_at: z.string().nullable().optional(),
+      start_at: z.string().nullable().optional(),
+      deadline_at: z.string().nullable().optional(),
+      done_at: z.string().nullable().optional(),
       field_values: z.record(z.union([z.string(), z.array(z.string())])).optional(),
     },
-    async ({ title, content, status_id, due_at, field_values }) => {
+    async ({ title, content, status_id, start_at, deadline_at, done_at, field_values }) => {
       const todo = await addTodo(client, {
         title,
         content,
         statusId: status_id,
-        dueAt: due_at ?? null,
+        startAt: start_at ?? null,
+        deadlineAt: deadline_at ?? null,
+        doneAt: done_at ?? null,
         fieldValues: field_values,
       });
       return {
@@ -119,15 +123,19 @@ async function main() {
       title: z.string().optional(),
       content: z.string().optional(),
       status_id: z.string().optional(),
-      due_at: z.string().nullable().optional(),
+      start_at: z.string().nullable().optional(),
+      deadline_at: z.string().nullable().optional(),
+      done_at: z.string().nullable().optional(),
       field_values: z.record(z.union([z.string(), z.array(z.string())])).optional(),
     },
-    async ({ id, title, content, status_id, due_at, field_values }) => {
+    async ({ id, title, content, status_id, start_at, deadline_at, done_at, field_values }) => {
       const todo = await updateTodo(client, id, {
         title,
         content,
         statusId: status_id,
-        dueAt: due_at,
+        startAt: start_at,
+        deadlineAt: deadline_at,
+        doneAt: done_at,
         fieldValues: field_values,
       });
       if (!todo) {

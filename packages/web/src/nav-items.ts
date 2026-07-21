@@ -1,4 +1,4 @@
-import { LayoutList, Settings, Trash2, type LucideIcon } from "lucide-react";
+import { BookOpen, LayoutList, Settings, Trash2, type LucideIcon } from "lucide-react";
 
 export type NavItem = {
   to: string;
@@ -19,6 +19,11 @@ export const NAV_ITEMS: NavItem[] = [
     to: "/trash",
     label: "Trash",
     icon: Trash2,
+  },
+  {
+    to: "/docs",
+    label: "Docs",
+    icon: BookOpen,
   },
   {
     to: "/settings",

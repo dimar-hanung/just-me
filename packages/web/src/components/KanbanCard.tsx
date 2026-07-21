@@ -51,7 +51,9 @@ export default function KanbanCard({
   const didDragRef = useRef(false);
   const showCode = visibleColumns.has("code");
   const showContent = visibleColumns.has("content");
-  const showDue = visibleColumns.has("due");
+  const showStart = visibleColumns.has("start");
+  const showDeadline = visibleColumns.has("deadline");
+  const showDone = visibleColumns.has("done");
   const showUpdated = visibleColumns.has("updated");
   const preview = showContent && todo.content?.trim() ? contentPreview(todo.content) : "";
 
@@ -60,7 +62,7 @@ export default function KanbanCard({
     [fields, visibleColumns],
   );
 
-  const hasMeta = showDue || showUpdated || visibleFields.length > 0;
+  const hasMeta = showStart || showDeadline || showDone || showUpdated || visibleFields.length > 0;
 
   return (
     <article
@@ -101,10 +103,22 @@ export default function KanbanCard({
         {preview ? <p className="kanban-card-preview">{preview}</p> : null}
         {hasMeta ? (
           <dl className="kanban-card-meta">
-            {showDue && (
+            {showStart && (
               <div className="kanban-card-meta-row">
-                <dt className="kanban-card-meta-label">Due</dt>
-                <dd className="kanban-card-meta-value">{formatTodoDate(todo.dueAt)}</dd>
+                <dt className="kanban-card-meta-label">Start</dt>
+                <dd className="kanban-card-meta-value">{formatTodoDate(todo.startAt)}</dd>
+              </div>
+            )}
+            {showDeadline && (
+              <div className="kanban-card-meta-row">
+                <dt className="kanban-card-meta-label">Deadline</dt>
+                <dd className="kanban-card-meta-value">{formatTodoDate(todo.deadlineAt)}</dd>
+              </div>
+            )}
+            {showDone && (
+              <div className="kanban-card-meta-row">
+                <dt className="kanban-card-meta-label">Done</dt>
+                <dd className="kanban-card-meta-value">{formatTodoDate(todo.doneAt)}</dd>
               </div>
             )}
             {showUpdated && (
