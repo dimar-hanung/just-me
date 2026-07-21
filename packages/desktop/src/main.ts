@@ -1,11 +1,64 @@
-import { app, BrowserWindow } from "electron";
-import { startServer } from "@just-me/api";
+import { app, BrowserWindow, dialog } from "electron";
+import { DEFAULT_API_PORT, startServer, type ApiServer } from "@just-me/api";
 
-const PORT = 7841;
+const PORT = DEFAULT_API_PORT;
 const APP_URL = `http://127.0.0.1:${PORT}`;
 
 let mainWindow: BrowserWindow | null = null;
-let server: { close?: (callback?: () => void) => void } | null = null;
+let server: ApiServer | null = null;
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+}
+
+async function isJustMeApiRunning(): Promise<boolean> {
+  try {
+    const res = await fetch(`${APP_URL}/api/health`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    if (!res.ok) {
+      return false;
+    }
+    const data = (await res.json()) as { app?: string };
+    return data.app === "just-me";
+  } catch {
+    return false;
+  }
+}
+
+async function ensureApiServer(): Promise<ApiServer> {
+  if (await isJustMeApiRunning()) {
+    return { port: PORT, owned: false, close: () => {} };
+  }
+
+  try {
+    return await startServer(PORT);
+  } catch (error) {
+    const code = error instanceof Error && "code" in error ? String(error.code) : "";
+    if (code !== "EADDRINUSE") {
+      throw error;
+    }
+
+    if (await isJustMeApiRunning()) {
+      return { port: PORT, owned: false, close: () => {} };
+    }
+
+    dialog.showErrorBox(
+      "Just Me could not start",
+      [
+        `Port ${PORT} is already in use by another program.`,
+        "",
+        "Try this:",
+        "• Close any other Just Me windows",
+        "• Stop a dev API if you ran `pnpm dev:api`",
+        "• Restart your computer if the problem persists",
+      ].join("\n"),
+    );
+    app.quit();
+    throw error;
+  }
+}
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
@@ -25,8 +78,24 @@ async function createWindow() {
   });
 }
 
+function focusMainWindow() {
+  if (!mainWindow) {
+    return;
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.focus();
+}
+
+if (gotSingleInstanceLock) {
+  app.on("second-instance", () => {
+    focusMainWindow();
+  });
+}
+
 app.whenReady().then(async () => {
-  server = await startServer(PORT);
+  server = await ensureApiServer();
   await createWindow();
 
   app.on("activate", async () => {
@@ -43,7 +112,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
-  if (server && typeof server.close === "function") {
+  if (server?.owned) {
     server.close();
   }
 });

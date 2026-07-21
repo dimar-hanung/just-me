@@ -49,11 +49,17 @@ const GOOGLE_REDIRECT_URI = "http://127.0.0.1:7841/api/onboarding/google/callbac
 app.get("/api/health", async (c) => {
   const config = await loadConfig();
   if (!config.storage) {
-    return c.json({ ok: false, onboardingComplete: config.onboardingComplete, storage: null });
+    return c.json({
+      app: "just-me",
+      ok: false,
+      onboardingComplete: config.onboardingComplete,
+      storage: null,
+    });
   }
   try {
     await testStorageConnection(config);
     return c.json({
+      app: "just-me",
       ok: true,
       onboardingComplete: config.onboardingComplete,
       storage: config.storage.mode,
@@ -61,7 +67,12 @@ app.get("/api/health", async (c) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Storage unreachable";
-    return c.json({ ok: false, error: message, onboardingComplete: config.onboardingComplete }, 503);
+    return c.json({
+      app: "just-me",
+      ok: false,
+      error: message,
+      onboardingComplete: config.onboardingComplete,
+    }, 503);
   }
 });
 
@@ -456,12 +467,30 @@ app.get("*", async (c) => {
 
 export { app };
 
-export function startServer(port = 7841) {
-  return import("@hono/node-server").then(({ serve }) => {
-    return serve({
-      fetch: app.fetch,
-      hostname: "127.0.0.1",
-      port,
+export const DEFAULT_API_PORT = 7841;
+
+export type ApiServer = {
+  port: number;
+  owned: boolean;
+  close: (callback?: () => void) => void;
+};
+
+export function startServer(port = DEFAULT_API_PORT): Promise<ApiServer> {
+  return import("@hono/node-server").then(({ createAdaptorServer }) => {
+    return new Promise((resolve, reject) => {
+      const server = createAdaptorServer(app);
+
+      server.once("error", (error: NodeJS.ErrnoException) => {
+        reject(error);
+      });
+
+      server.listen(port, "127.0.0.1", () => {
+        resolve({
+          port,
+          owned: true,
+          close: (callback) => server.close(callback),
+        });
+      });
     });
   });
 }

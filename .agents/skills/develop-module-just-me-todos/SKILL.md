@@ -56,7 +56,7 @@ Use when working on the Just Me personal todo app: storage, API, UI, MCP, Electr
 ## Learned Workspace Facts
 
 - Monorepo uses pnpm workspaces under `packages/*`
-- API binds `127.0.0.1:7841` only
+- API binds `127.0.0.1:7841` only; desktop uses single-instance lock and reuses an existing Just Me API on that port instead of crashing with EADDRINUSE
 - Hono runs inside Electron main process
 
 ## External projects
