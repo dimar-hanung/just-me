@@ -1,4 +1,4 @@
-import { LayoutGrid, Plus, Table2 } from "lucide-react";
+import { LayoutGrid, Pencil, Plus, Table2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { TodoView, ViewLayout } from "../view-types";
 
@@ -83,6 +83,11 @@ export default function ViewTabs({
     setContextMenu({ viewId, x: event.clientX, y: event.clientY });
   }
 
+  function handleRename(view: TodoView) {
+    setContextMenu(null);
+    startRename(view);
+  }
+
   function handleLayoutChange(viewId: string, layout: ViewLayout) {
     setContextMenu(null);
     onLayoutChange(viewId, layout);
@@ -147,6 +152,16 @@ export default function ViewTabs({
           role="menu"
           aria-label={`Actions for ${contextView.name}`}
         >
+          <button
+            type="button"
+            role="menuitem"
+            className="view-tab-context-menu-item"
+            onClick={() => handleRename(contextView)}
+          >
+            <Pencil className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+            Rename
+          </button>
+          <div className="view-tab-context-menu-separator" role="separator" />
           <button
             type="button"
             role="menuitemradio"

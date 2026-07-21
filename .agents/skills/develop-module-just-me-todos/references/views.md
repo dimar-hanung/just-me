@@ -76,7 +76,7 @@ Legacy query params `status_id` and `code` still work (MCP).
 
 ## Web UI
 
-- `ViewTabs` — switch/create/rename/delete views; right-click menu sets layout (table/board) and delete
+- `ViewTabs` — switch/create/rename/delete views; right-click menu: rename, layout (table/board), delete (double-click tab also renames)
 - `ViewFilterPopover` — filter builder with groups
 - `ViewSortPopover` — multi-sort builder
 - Layout (board/table), columns, page size, filters, sorts auto-save to active view (debounced PATCH)

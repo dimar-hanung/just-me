@@ -842,6 +842,25 @@ input[type="checkbox"] {
   color: rgb(var(--fg-muted));
 }
 
+.ticket-code-btn {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  background: rgb(var(--surface-muted));
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.ticket-code-btn:hover {
+  background: rgb(var(--border));
+  color: rgb(var(--fg));
+}
+
+.ticket-code-btn:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 1px;
+}
+
 .kanban-card-title {
   font-size: 0.875rem;
   line-height: 1.375;
@@ -914,11 +933,12 @@ input[type="checkbox"] {
   justify-content: center;
   padding: 0.125rem;
   border: none;
+  border-radius: 0.25rem;
   background: transparent;
-  color: rgb(var(--fg-subtle));
+  color: rgb(var(--danger, 239 68 68));
   cursor: pointer;
   opacity: 0;
-  transition: color 150ms var(--ease-out), transform 160ms var(--ease-out), opacity 150ms var(--ease-out);
+  transition: color 150ms var(--ease-out), transform 160ms var(--ease-out), opacity 150ms var(--ease-out), background 150ms var(--ease-out);
 }
 
 .kanban-card:hover .kanban-card-delete,
@@ -928,7 +948,8 @@ input[type="checkbox"] {
 
 @media (hover: hover) and (pointer: fine) {
   .kanban-card-delete:hover {
-    color: rgb(248 113 113);
+    color: rgb(220 38 38);
+    background: rgb(var(--danger, 239 68 68) / 0.12);
   }
 }
 
@@ -1163,6 +1184,8 @@ input[type="checkbox"] {
 
 .todo-table-wrap {
   overflow-x: auto;
+  /* Avoid a vertical scrollport; dropdowns use fixed positioning instead. */
+  overflow-y: clip;
 }
 
 .todo-table {
@@ -1211,12 +1234,58 @@ input[type="checkbox"] {
 }
 
 .todo-table-code {
+  width: 1%;
+  padding-inline: 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
   color: rgb(var(--fg-muted));
   white-space: nowrap;
+}
+
+.todo-table-code-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.todo-table-code-text {
+  font: inherit;
+  color: inherit;
+}
+
+.todo-table-code-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border: none;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: rgb(59 130 246);
+  cursor: pointer;
+  opacity: 0;
+  transition: color 150ms var(--ease-out), opacity 150ms var(--ease-out), background 150ms var(--ease-out);
+}
+
+.todo-table-row:hover .todo-table-code-copy,
+.todo-table-row:focus-within .todo-table-code-copy,
+.todo-table-code-copy:focus {
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .todo-table-code-copy:hover {
+    color: rgb(37 99 235);
+    background: rgb(59 130 246 / 0.12);
+  }
+}
+
+.todo-table-code-copy:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 1px;
+  opacity: 1;
 }
 
 .todo-table-title {
@@ -1232,34 +1301,196 @@ input[type="checkbox"] {
   color: rgb(var(--fg));
 }
 
-.todo-table-status-cell {
+.todo-table td.todo-table-status-cell,
+.todo-table td.todo-table-field-cell {
+  position: relative;
+  padding: 0;
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 .todo-table-status {
-  display: inline-flex;
+  position: absolute;
+  inset: 0;
+  display: flex;
   align-items: center;
-  gap: 0.375rem;
-  border-radius: 9999px;
+  box-sizing: border-box;
+  border-radius: 0;
   background: rgb(var(--hue, var(--accent)) / 0.12);
-  padding: 0.125rem 0.5rem 0.125rem 0.375rem;
+  margin: 0;
 }
 
-.todo-table-status select {
+.status-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
   border: none;
   background: transparent;
-  padding: 0;
+  padding: 0 0.75rem 0 0.875rem;
+  margin: 0;
   font-size: 0.75rem;
   font-weight: 500;
+  line-height: 1;
   color: rgb(var(--hue, var(--accent)));
   cursor: pointer;
   outline: none;
+  text-align: left;
 }
 
-.todo-table-field-cell {
+.status-dropdown-trigger:focus-visible {
+  box-shadow: inset 0 0 0 2px rgb(var(--hue, var(--accent)) / 0.45);
+}
+
+.status-dropdown-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-dropdown-chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  color: rgb(var(--hue, var(--accent)) / 0.75);
+  transition: transform 160ms ease-out;
+}
+
+.status-dropdown-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.status-dropdown-menu {
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid rgb(var(--border));
+  border-radius: 0.5rem;
+  background: rgb(var(--surface));
+  padding: 0.25rem;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 10px 28px rgb(0 0 0 / 0.14);
+  transform-origin: top center;
+  animation: status-dropdown-in 140ms ease-out;
+  outline: none;
+}
+
+@keyframes status-dropdown-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dropdown-chevron {
+    transition: none;
+  }
+
+  .status-dropdown-menu {
+    animation: none;
+  }
+}
+
+.status-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: rgb(var(--hue, var(--accent)));
+  cursor: pointer;
+  text-align: left;
+}
+
+.status-dropdown-option.is-active,
+.status-dropdown-option:hover {
+  background: rgb(var(--hue, var(--accent)) / 0.12);
+}
+
+.status-dropdown-option.is-selected {
+  background: rgb(var(--hue, var(--accent)) / 0.16);
+}
+
+.status-dropdown-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-dropdown-check,
+.status-dropdown-check-spacer {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
+.status-dropdown-check {
+  color: rgb(var(--hue, var(--accent)));
+}
+
+.todo-table td.todo-table-field-cell {
   min-width: 8rem;
   max-width: 14rem;
-  vertical-align: top;
+}
+
+.todo-table-field-cell .field-dropdown--compact,
+.todo-table-field-cell .field-value-input--compact,
+.todo-table-field-cell .field-value-select--compact {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  margin: 0;
+}
+
+.todo-table-field-cell .field-value-input--compact,
+.todo-table-field-cell .field-value-select--compact,
+.todo-table-field-cell .field-dropdown--compact .field-dropdown-trigger {
+  box-sizing: border-box;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0.875rem;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1;
+  appearance: none;
+}
+
+.todo-table-field-cell .field-dropdown--compact .field-dropdown-trigger {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  min-height: 0;
+  height: auto;
+  display: flex;
+  align-items: center;
+}
+
+.todo-table-field-cell .field-value-input--compact:focus,
+.todo-table-field-cell .field-value-select--compact:focus,
+.todo-table-field-cell .field-dropdown--compact .field-dropdown-trigger:focus-visible {
+  background: rgb(var(--surface-muted) / 0.55);
+  box-shadow: inset 0 0 0 2px rgb(var(--accent) / 0.35);
 }
 
 .field-type-badge {
@@ -1360,6 +1591,11 @@ input[type="checkbox"] {
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
 }
 
+.field-dropdown-menu--fixed {
+  /* top/left/width set inline so the menu escapes table overflow clipping */
+  right: auto;
+}
+
 .field-dropdown-option {
   display: flex;
   align-items: center;
@@ -1432,7 +1668,11 @@ input[type="checkbox"] {
   color: rgb(var(--fg-subtle));
   cursor: pointer;
   opacity: 0;
-  transition: color 150ms var(--ease-out), opacity 150ms var(--ease-out);
+  transition: color 150ms var(--ease-out), opacity 150ms var(--ease-out), background 150ms var(--ease-out);
+}
+
+.todo-table-delete {
+  color: rgb(var(--danger, 239 68 68));
 }
 
 .todo-table-action:disabled,
@@ -1467,7 +1707,8 @@ input[type="checkbox"] {
   }
 
   .todo-table-delete:hover:not(:disabled) {
-    color: rgb(248 113 113);
+    color: rgb(220 38 38);
+    background: rgb(var(--danger, 239 68 68) / 0.12);
   }
 }
 
@@ -1569,12 +1810,46 @@ input[type="checkbox"] {
   box-shadow: none;
 }
 
+.todo-detail-tabs-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgb(var(--border));
+}
+
 .todo-detail-tabs {
   display: flex;
   gap: 1.25rem;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid rgb(var(--border));
+  min-width: 0;
   padding-bottom: 0;
+}
+
+.todo-detail-tab-tip {
+  flex-shrink: 0;
+  margin: 0 0 0.625rem;
+  font-size: 0.75rem;
+  color: rgb(var(--fg-subtle));
+}
+
+.todo-detail-tab-tip kbd {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  border: 1px solid rgb(var(--border));
+  border-radius: 0.25rem;
+  background: rgb(var(--surface));
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: rgb(var(--fg-muted));
+  line-height: 1.2;
+}
+
+@media (max-width: 520px) {
+  .todo-detail-tab-tip {
+    display: none;
+  }
 }
 
 .todo-detail-tab {
@@ -1609,16 +1884,21 @@ input[type="checkbox"] {
 }
 
 .todo-detail-body {
-  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 18rem);
 }
 
+.todo-detail-panel[hidden] {
+  display: none;
+}
+
 .todo-detail-textarea {
-  flex: 1;
+  display: block;
   width: 100%;
   min-height: calc(100vh - 18rem);
+  height: auto;
+  overflow: hidden;
   resize: none;
   border: none;
   border-radius: 0;
@@ -1629,6 +1909,7 @@ input[type="checkbox"] {
   line-height: 1.7;
   color: rgb(var(--fg));
   outline: none;
+  field-sizing: content;
 }
 
 .todo-detail-textarea::placeholder {
@@ -1644,11 +1925,7 @@ input[type="checkbox"] {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 100%;
-}
-
-.markdown-textarea-wrap .todo-detail-textarea {
-  flex: 1;
+  width: 100%;
 }
 
 .markdown-textarea--drag-active {
@@ -1813,7 +2090,7 @@ input[type="checkbox"] {
   color: rgb(var(--fg));
 }
 
-/* Lists — shared marker column + text column for consistent alignment */
+/* Lists — absolute markers (not grid): grid made each inline child a cell. */
 .markdown-prose ul:not(.contains-task-list),
 .markdown-prose ol,
 .markdown-prose ul.contains-task-list {
@@ -1825,19 +2102,9 @@ input[type="checkbox"] {
 .markdown-prose ul:not(.contains-task-list) > li,
 .markdown-prose ol > li,
 .markdown-prose li.task-list-item {
-  display: grid;
-  grid-template-columns: var(--md-marker-col) minmax(0, 1fr);
-  column-gap: var(--md-list-gap);
-  align-items: start;
-  padding-left: 0;
+  position: relative;
+  padding-left: calc(var(--md-marker-col) + var(--md-list-gap));
   margin-bottom: 0.375em;
-}
-
-.markdown-prose ul:not(.contains-task-list) > li > ul,
-.markdown-prose ul:not(.contains-task-list) > li > ol,
-.markdown-prose ol > li > ul,
-.markdown-prose ol > li > ol {
-  grid-column: 2;
 }
 
 .markdown-prose ul:not(.contains-task-list) > li:last-child,
@@ -1857,28 +2124,31 @@ input[type="checkbox"] {
 /* Unordered bullets */
 .markdown-prose ul:not(.contains-task-list) > li::before {
   content: "";
+  position: absolute;
+  left: calc((var(--md-marker-col) - 0.4375rem) / 2);
+  top: calc(0.5lh - 0.21875rem);
   width: 0.4375rem;
   height: 0.4375rem;
-  margin-top: calc(0.5lh - 0.21875rem);
-  justify-self: center;
   border-radius: 9999px;
   background: rgb(var(--accent));
   box-shadow: 0 0 0 3px rgb(var(--accent) / 0.14);
 }
 
 .markdown-prose ul:not(.contains-task-list) ul > li::before {
+  left: calc((var(--md-marker-col) - 0.375rem) / 2);
+  top: calc(0.5lh - 0.1875rem);
   width: 0.375rem;
   height: 0.375rem;
-  margin-top: calc(0.5lh - 0.1875rem);
   background: transparent;
   border: 1.5px solid rgb(var(--accent) / 0.65);
   box-shadow: none;
 }
 
 .markdown-prose ul:not(.contains-task-list) ul ul > li::before {
+  left: calc((var(--md-marker-col) - 0.3125rem) / 2);
+  top: calc(0.5lh - 0.15625rem);
   width: 0.3125rem;
   height: 0.3125rem;
-  margin-top: calc(0.5lh - 0.15625rem);
   border-radius: 0.125rem;
   background: rgb(var(--accent) / 0.55);
   border: none;
@@ -1891,8 +2161,11 @@ input[type="checkbox"] {
 
 .markdown-prose ol > li::before {
   content: counter(md-ol) ".";
-  justify-self: end;
-  margin-top: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--md-marker-col);
+  text-align: right;
   font-size: inherit;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -1918,10 +2191,12 @@ input[type="checkbox"] {
 }
 
 .markdown-prose li.task-list-item input[type="checkbox"] {
+  position: absolute;
+  left: calc((var(--md-marker-col) - 1rem) / 2);
+  top: calc(0.5lh - 0.5rem);
   width: 1rem;
   height: 1rem;
-  margin: calc(0.5lh - 0.5rem) 0 0;
-  justify-self: center;
+  margin: 0;
   border-radius: 0.25rem;
   cursor: default;
 }

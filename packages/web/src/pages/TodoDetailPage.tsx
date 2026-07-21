@@ -1,10 +1,14 @@
 import { ArrowLeft } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api, type Field, type Todo, type TodoFieldValues } from "../api";
 import { FieldValuesSection } from "../components/FieldValueEditors";
 import MarkdownContent from "../components/MarkdownContent";
-import MarkdownTextarea from "../components/MarkdownTextarea";
+import MarkdownTextarea, {
+  type MarkdownTextareaHandle,
+} from "../components/MarkdownTextarea";
+import TicketCode from "../components/TicketCode";
+import type { TextCursorPosition } from "../markdown-insert";
 
 type Tab = "write" | "preview";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -12,6 +16,14 @@ type SaveStatus = "idle" | "saving" | "saved" | "error";
 type TodoDetailLocationState = {
   defaultTab?: Tab;
 };
+
+function isModKey(event: KeyboardEvent): boolean {
+  return event.metaKey || event.ctrlKey;
+}
+
+function getPageScrollContainer(start: HTMLElement | null): HTMLElement | null {
+  return start?.closest("main") ?? null;
+}
 
 export default function TodoDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,8 +50,16 @@ export default function TodoDetailPage() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fieldSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<MarkdownTextareaHandle>(null);
+  const cursorPosRef = useRef<TextCursorPosition>({ line: 1, column: 0 });
+  const scrollTopRef = useRef(0);
+  const restoreFocusRef = useRef(false);
+  const restoreScrollRef = useRef(false);
+  const tabRef = useRef(tab);
 
   draftRef.current = { title, content, fieldValues };
+  tabRef.current = tab;
 
   const fieldValuesEqual = useCallback((a: TodoFieldValues, b: TodoFieldValues) => {
     const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
@@ -187,9 +207,121 @@ export default function TodoDetailPage() {
     };
   }, [id, fieldValuesEqual]);
 
+  const captureCursor = useCallback(() => {
+    if (tabRef.current !== "write" || !textareaRef.current) return;
+    cursorPosRef.current = textareaRef.current.getCursorPosition();
+  }, []);
+
+  const captureScroll = useCallback(() => {
+    const container = getPageScrollContainer(detailRef.current);
+    if (!container) return;
+    scrollTopRef.current = container.scrollTop;
+  }, []);
+
+  const switchTab = useCallback(
+    (next: Tab) => {
+      if (next === tabRef.current) return;
+      captureScroll();
+      if (tabRef.current === "write") {
+        captureCursor();
+      }
+      restoreScrollRef.current = true;
+      if (next === "write") {
+        restoreFocusRef.current = true;
+      }
+      setTab(next);
+    },
+    [captureCursor, captureScroll],
+  );
+
+  const toggleTab = useCallback(() => {
+    switchTab(tabRef.current === "write" ? "preview" : "write");
+  }, [switchTab]);
+
+  useLayoutEffect(() => {
+    const shouldRestoreFocus = restoreFocusRef.current;
+    const shouldRestoreScroll = restoreScrollRef.current;
+    if (!shouldRestoreFocus && !shouldRestoreScroll) return;
+
+    restoreFocusRef.current = false;
+    restoreScrollRef.current = false;
+
+    const position = cursorPosRef.current;
+    const scrollTop = scrollTopRef.current;
+    const container = getPageScrollContainer(detailRef.current);
+
+    const applyScroll = () => {
+      if (!shouldRestoreScroll || !container) return;
+      container.scrollTop = scrollTop;
+    };
+
+    if (tab === "write") {
+      // Panels stay mounted; sync height if content changed while Write was hidden.
+      textareaRef.current?.syncHeight();
+      applyScroll();
+
+      if (shouldRestoreFocus) {
+        // Do not setSelectionRange here — browsers scroll the caret into view and
+        // jump to the top when the saved line is 1 (default Preview entry).
+        // Selection is preserved while the Write panel stays mounted; only re-apply
+        // a captured position when the browser cleared it (selection at 0).
+        const current = textareaRef.current?.getCursorPosition();
+        const selectionLost =
+          !current || (current.line === 1 && current.column === 0 && position.line > 1);
+        if (selectionLost) {
+          textareaRef.current?.focusAtPosition(position, { preventScroll: true });
+        } else {
+          textareaRef.current?.focus({ preventScroll: true });
+        }
+        applyScroll();
+      }
+    } else {
+      applyScroll();
+    }
+
+    // Defeat late caret scroll-into-view from focus/setSelectionRange.
+    const onScroll = () => {
+      applyScroll();
+    };
+    if (shouldRestoreScroll && container) {
+      container.addEventListener("scroll", onScroll);
+    }
+
+    let frame2 = 0;
+    const unlockTimer = window.setTimeout(() => {
+      container?.removeEventListener("scroll", onScroll);
+    }, 100);
+    const frame1 = requestAnimationFrame(() => {
+      applyScroll();
+      frame2 = requestAnimationFrame(applyScroll);
+    });
+    return () => {
+      cancelAnimationFrame(frame1);
+      cancelAnimationFrame(frame2);
+      window.clearTimeout(unlockTimer);
+      container?.removeEventListener("scroll", onScroll);
+    };
+  }, [tab]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.isComposing || event.altKey || event.shiftKey) return;
+      if (!isModKey(event) || event.key.toLowerCase() !== "e") return;
+      event.preventDefault();
+      toggleTab();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [toggleTab]);
+
   function handleFieldChange(fieldId: string, value: string | string[]) {
     setFieldValues((current) => ({ ...current, [fieldId]: value }));
   }
+
+  const shortcutHint = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+    ? "⌘E"
+    : "Ctrl+E";
 
   if (loading) {
     return <p className="text-muted">Loading…</p>;
@@ -209,7 +341,7 @@ export default function TodoDetailPage() {
           : "todo-detail-footer";
 
   return (
-    <div className="todo-detail">
+    <div ref={detailRef} className="todo-detail">
       <Link to="/" className="todo-detail-back">
         <ArrowLeft className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
         Back to board
@@ -217,7 +349,7 @@ export default function TodoDetailPage() {
 
       <header className="todo-detail-header">
         <div className="todo-detail-meta">
-          {todo.code ? <span className="kanban-card-code">{todo.code}</span> : null}
+          {todo.code ? <TicketCode code={todo.code} /> : null}
           {todo.statusName ? <span className="todo-detail-status">{todo.statusName}</span> : null}
         </div>
         <input
@@ -236,40 +368,50 @@ export default function TodoDetailPage() {
         </div>
       )}
 
-      <div className="todo-detail-tabs" role="tablist" aria-label="Content view">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "write"}
-          className={`todo-detail-tab ${tab === "write" ? "todo-detail-tab--active" : ""}`}
-          onClick={() => setTab("write")}
-        >
-          Write
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "preview"}
-          className={`todo-detail-tab ${tab === "preview" ? "todo-detail-tab--active" : ""}`}
-          onClick={() => setTab("preview")}
-        >
-          Preview
-        </button>
+      <div className="todo-detail-tabs-row">
+        <div className="todo-detail-tabs" role="tablist" aria-label="Content view">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "write"}
+            className={`todo-detail-tab ${tab === "write" ? "todo-detail-tab--active" : ""}`}
+            title={`Write (${shortcutHint})`}
+            onClick={() => switchTab("write")}
+          >
+            Write
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "preview"}
+            className={`todo-detail-tab ${tab === "preview" ? "todo-detail-tab--active" : ""}`}
+            title={`Preview (${shortcutHint})`}
+            onClick={() => switchTab("preview")}
+          >
+            Preview
+          </button>
+        </div>
+        <p className="todo-detail-tab-tip">
+          Tip: <kbd>{shortcutHint}</kbd> toggles Write / Preview
+        </p>
       </div>
 
       <div className="todo-detail-body">
-        {tab === "write" ? (
+        <div className="todo-detail-panel" hidden={tab !== "write"}>
           <MarkdownTextarea
+            ref={textareaRef}
             value={content}
             onChange={setContent}
             uploadEnabled={uploadEnabled}
+            active={tab === "write"}
             placeholder="Write markdown notes… Paste or drop files to attach."
             className="todo-detail-textarea"
             aria-label="Markdown content"
           />
-        ) : (
+        </div>
+        <div className="todo-detail-panel" hidden={tab !== "preview"}>
           <MarkdownContent source={content} onSourceChange={setContent} />
-        )}
+        </div>
       </div>
 
       <footer className={footerClass}>

@@ -2,6 +2,7 @@ import { Trash2 } from "lucide-react";
 import { useMemo, useRef } from "react";
 import type { Field, Todo } from "../api";
 import { formatFieldDisplayValue } from "../components/FieldValueEditors";
+import TicketCode from "../components/TicketCode";
 import type { TodoColumnId } from "../todo-columns";
 import { formatTodoDate } from "../todo-date";
 
@@ -95,7 +96,7 @@ export default function KanbanCard({
         tabIndex={0}
         aria-label={`Open ${todo.title}`}
       >
-        {showCode && todo.code ? <span className="kanban-card-code">{todo.code}</span> : null}
+        {showCode && todo.code ? <TicketCode code={todo.code} /> : null}
         <p className="kanban-card-title">{todo.title}</p>
         {preview ? <p className="kanban-card-preview">{preview}</p> : null}
         {hasMeta ? (
@@ -133,7 +134,7 @@ export default function KanbanCard({
         aria-label={`Move ${todo.title} to trash`}
         title="Move to trash"
       >
-        <Trash2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+        <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
       </button>
     </article>
   );

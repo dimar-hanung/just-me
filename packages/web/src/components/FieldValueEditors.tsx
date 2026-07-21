@@ -1,5 +1,14 @@
 import { ChevronDown } from "lucide-react";
-import { useEffect, useRef, useState, type ChangeEvent, type MouseEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type MouseEvent,
+} from "react";
+import { createPortal } from "react-dom";
 import type { Field, FieldOption, TodoFieldValues } from "../api";
 
 type FieldValueEditorProps = {
@@ -67,20 +76,62 @@ function TagMultiDropdown({
   disabled: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties | undefined>();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
 
     function handlePointerDown(event: Event) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
     }
 
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    // Capture so outside-click still closes when another control stops mousedown propagation.
+    document.addEventListener("mousedown", handlePointerDown, true);
+    return () => document.removeEventListener("mousedown", handlePointerDown, true);
   }, [open]);
+
+  // Portal + fixed position so bottom-row menus escape table/panel overflow clipping.
+  useLayoutEffect(() => {
+    if (!open || !compact) {
+      setMenuStyle(undefined);
+      return;
+    }
+
+    function updatePosition() {
+      const trigger = triggerRef.current;
+      const menu = menuRef.current;
+      if (!trigger) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const gap = 4;
+      const menuHeight = menu?.offsetHeight ?? 192;
+      const spaceBelow = window.innerHeight - rect.bottom - gap;
+      const openUp = spaceBelow < menuHeight && rect.top > spaceBelow;
+
+      setMenuStyle({
+        position: "fixed",
+        left: rect.left,
+        width: Math.max(rect.width, 10 * 16),
+        top: openUp ? undefined : rect.bottom + gap,
+        bottom: openUp ? window.innerHeight - rect.top + gap : undefined,
+        right: "auto",
+        zIndex: 60,
+      });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, compact, value.length, field.options.length]);
 
   const labels = value.map((id) => optionLabel(field.options, id));
   const summary =
@@ -91,6 +142,37 @@ function TagMultiDropdown({
     onChange(field.id, next);
   }
 
+  const menu = open ? (
+    <div
+      ref={menuRef}
+      className={`field-dropdown-menu${compact ? " field-dropdown-menu--fixed" : ""}`}
+      style={compact ? menuStyle : undefined}
+      role="listbox"
+      aria-label={field.name}
+      aria-multiselectable="true"
+      onClick={stopRowClick}
+      onMouseDown={stopRowClick}
+    >
+      {field.options.map((option) => {
+        const checked = value.includes(option.id);
+        return (
+          <label key={option.id} className="field-dropdown-option">
+            <input
+              type="checkbox"
+              checked={checked}
+              disabled={disabled}
+              onChange={(e) => {
+                stopRowClick(e);
+                toggleOption(option.id, e.target.checked);
+              }}
+            />
+            <span>{option.label}</span>
+          </label>
+        );
+      })}
+    </div>
+  ) : null;
+
   return (
     <div
       ref={rootRef}
@@ -99,6 +181,7 @@ function TagMultiDropdown({
       onMouseDown={stopRowClick}
     >
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
         className="field-dropdown-trigger"
@@ -111,27 +194,7 @@ function TagMultiDropdown({
         <ChevronDown className="field-dropdown-chevron" strokeWidth={2} aria-hidden="true" />
       </button>
 
-      {open && (
-        <div className="field-dropdown-menu" role="listbox" aria-label={field.name} aria-multiselectable="true">
-          {field.options.map((option) => {
-            const checked = value.includes(option.id);
-            return (
-              <label key={option.id} className="field-dropdown-option">
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={disabled}
-                  onChange={(e) => {
-                    stopRowClick(e);
-                    toggleOption(option.id, e.target.checked);
-                  }}
-                />
-                <span>{option.label}</span>
-              </label>
-            );
-          })}
-        </div>
-      )}
+      {compact && menu ? createPortal(menu, document.body) : menu}
     </div>
   );
 }

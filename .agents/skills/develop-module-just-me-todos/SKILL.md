@@ -20,12 +20,12 @@ Use when working on the Just Me personal todo app: storage, API, UI, MCP, Electr
   - `src/pages/HomePage.tsx` — **saved views** (tabs inside `todo-view-panel` above table/board), filter/sort popovers, layout (board/table per view), columns picker, paginated todo list with Load more and per-view page size
   - `src/pages/SettingsPage.tsx` — health check (top) + statuses + dynamic field definitions (type, tag options)
   - `src/components/HealthCheckSection.tsx` — Settings health panel: API/storage/onboarding/Drive status via `GET /api/health`, manual refresh
-  - `src/pages/TodoDetailPage.tsx` — todo detail at `/todos/:id` (markdown Write/Preview; **MarkdownTextarea** with R2 paste/drop upload; dynamic field editors; default Preview, Write when created from home, auto-save)
-  - `src/components/MarkdownTextarea.tsx` — markdown textarea with Ctrl+V paste and drag-and-drop upload to R2
-  - `src/markdown-insert.ts` — cursor insertion + markdown snippet for uploaded files/images
+  - `src/pages/TodoDetailPage.tsx` — todo detail at `/todos/:id` (markdown Write/Preview kept mounted and toggled with `hidden`; **Ctrl/Cmd+E** restores caret + page scroll; **MarkdownTextarea** with R2 paste/drop upload; dynamic field editors; default Preview, Write when created from home, auto-save)
+  - `src/components/MarkdownTextarea.tsx` — markdown textarea with Ctrl+V paste and drag-and-drop upload to R2; auto-grows via offscreen mirror measure (no live height:0); `active` skips resize while Write panel hidden; imperative cursor/focus helpers for tab toggle
+  - `src/markdown-insert.ts` — cursor insertion + markdown snippet for uploaded files/images; line/column ↔ offset helpers
   - `src/components/FieldValueEditors.tsx` — shared text/tag field editors for detail + table
   - `src/pages/TrashPage.tsx` — trash at `/trash` (restore or permanently delete; empty trash)
-  - `src/components/KanbanBoard.tsx`, `KanbanColumn.tsx`, `KanbanCard.tsx`, `TodoTable.tsx`, `TodoColumnPicker.tsx`, `ViewTabs.tsx`, `ViewFilterPopover.tsx`, `ViewSortPopover.tsx`, `MarkdownContent.tsx`, `ThemeToggle.tsx`
+  - `src/components/KanbanBoard.tsx`, `KanbanColumn.tsx`, `KanbanCard.tsx`, `TodoTable.tsx`, `StatusDropdown.tsx`, `TodoColumnPicker.tsx`, `TicketCode.tsx`, `ViewTabs.tsx`, `ViewFilterPopover.tsx`, `ViewSortPopover.tsx`, `MarkdownContent.tsx`, `ThemeToggle.tsx`
   - `src/view-types.ts`, `src/active-view.ts`, `src/view-migration.ts`, `src/view-filter-helpers.ts`
   - `src/todo-columns.ts` — column visibility per saved view (stored in DB via `views.columns_json`)
   - `src/todo-date.ts` — shared date formatting for table + kanban card meta
@@ -54,18 +54,24 @@ Use when working on the Just Me personal todo app: storage, API, UI, MCP, Electr
 - Dynamic todo statuses (default: Not Started, In Progress, Done)
 - **Dynamic fields** in Settings: `tag_multi`, `tag_single`, `text`; tag types use predefined options; values editable on todo detail + table columns
 - Default status accent colors: red (Not Started), blue (In Progress), green (Done)
-- Auto-generated ticket codes on todos (format `TODO-{num}`, e.g. `TODO-1`)
-- Per-todo markdown `content` field; detail page at `/todos/:id` with Write/Preview tabs (default Preview; Write when opened right after create), Notion-like auto-save
+- Auto-generated ticket codes on todos (format `TODO-{num}`, e.g. `TODO-1`); click code badge on board/detail to copy; table shows copy icon on row hover (`TicketCode`)
+- Per-todo markdown `content` field; detail page at `/todos/:id` with Write/Preview tabs (default Preview; Write when opened right after create), Notion-like auto-save; **Ctrl/Cmd+E** toggles Write/Preview and restores caret line/column + page scroll position
 - Optional **Cloudflare R2** attachments: configure in Settings; paste (Ctrl+V) or drag files into Write tab; images inline in Preview, other files as links
 - MCP: prefer `edit_todo_lines` (1-based inclusive range) over full `content` replace; use `get_todo` for `content_with_lines` (`N|line`); use `list_fields` before setting `field_values` on add/update
 - Home Add button creates an "Untitled" todo then navigates to `/todos/:id` with `{ defaultTab: "write" }` (no inline title input on home)
 - Preview tab: GFM task list checkboxes are clickable; toggling updates markdown source and auto-saves (`MarkdownContent` + `markdown-task-list.ts`)
+- Markdown list markers use absolute positioning in `.markdown-prose` (not CSS grid) so mixed inline nodes like `text **bold**` stay on one line
 - Storage choice: local SQLite or Turso
 - Electron over Tauri for stability
 - Kanban board UI with drag-and-drop between status columns; columns collapse/expand per status (persisted in `just-me-kanban-collapsed`)
 - Kanban cards show a 2-line plain-text preview of markdown `content` under the title (not rendered markdown); optional read-only Due, Updated, and dynamic field rows when enabled via Columns picker
 - **Saved views** (Notion-like): named views with layout (board/table), filters (AND/OR + nested groups), multi-sort, column visibility, and page size — all persisted in `views` table; active view id in `just-me-active-view-id`
 - Home todo list uses view filters/sorts server-side via `GET /api/todos?filters=&sorts=`; paginated with Load more; page size per view (10/30/50/100/No limit, default 30)
+- Table view: status and tag/field cells use zero cell padding; controls fill the cell for a larger click target (styles in `index.css` under `.todo-table-status-cell` / `.todo-table-field-cell`)
+- Table status cell uses custom `StatusDropdown` (not native `<select>`): hue-colored trigger matching the cell, menu options with hue dots + status colors + checkmark; portals to `document.body` with fixed positioning (same overflow escape pattern as compact tag-multi)
+- Table Code column stays narrow (`width: 1%` + nowrap on `.todo-table-code` for th/td) so it hugs ticket codes instead of stretching
+- Tag multi dropdown (`TagMultiDropdown` in `FieldValueEditors`) closes on outside click via capture-phase `mousedown` — needed because the control stops mousedown propagation to avoid table row navigation
+- Table compact tag-multi menus portal to `document.body` with fixed positioning (flip up near bottom) so they are not clipped by `.todo-view-panel` / `.todo-table-wrap` overflow
 - Todo detail loads one todo via `GET /api/todos/:id` (not full list)
 - Dark mode default; light/dark toggle persisted in localStorage (`just-me-theme`)
 - Icon-only sidebar rail (collapsed by default); expand toggle shows labels; state in `just-me-sidebar-expanded`

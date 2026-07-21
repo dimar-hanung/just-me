@@ -1,6 +1,6 @@
 {
   "name": "@just-me/desktop",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Just Me personal todo desktop app",
   "author": "Dimar Hanung <dimarhanung@ecampus.ut.ac.id>",
@@ -41,14 +41,19 @@
     ],
     "extraResources": [],
     "linux": {
-      "target": ["deb", "AppImage"],
+      "target": [
+        "deb",
+        "AppImage"
+      ],
       "category": "Office",
       "executableName": "just-me",
       "artifactName": "JustMe-${version}-${arch}.${ext}",
       "maintainer": "Dimar Hanung <dimarhanung@ecampus.ut.ac.id>"
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "artifactName": "JustMe-${version}-${arch}-setup.${ext}"
     },
     "nsis": {

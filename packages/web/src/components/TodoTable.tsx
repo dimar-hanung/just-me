@@ -2,7 +2,8 @@ import { Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import type { Field, Status, Todo, TodoFieldValues } from "../api";
 import { FieldValueEditor } from "../components/FieldValueEditors";
-import { getStatusHueClass } from "../status-hue";
+import StatusDropdown from "../components/StatusDropdown";
+import TicketCode from "../components/TicketCode";
 import type { TodoColumnId } from "../todo-columns";
 import { formatTodoDate } from "../todo-date";
 
@@ -42,7 +43,11 @@ export default function TodoTable({
       <table className="todo-table">
         <thead>
           <tr>
-            {visibleColumns.has("code") && <th scope="col">Code</th>}
+            {visibleColumns.has("code") && (
+              <th scope="col" className="todo-table-code">
+                Code
+              </th>
+            )}
             <th scope="col">Title</th>
             {visibleColumns.has("status") && <th scope="col">Status</th>}
             {visibleFields.map((field) => (
@@ -61,8 +66,6 @@ export default function TodoTable({
           {todos.map((todo) => {
             const status = statusById.get(todo.statusId);
             const statusName = status?.name ?? todo.statusName ?? "Unknown";
-            const statusIndex = status ? statuses.indexOf(status) : 0;
-            const hueClass = getStatusHueClass(statusName, statusIndex);
 
             return (
               <tr
@@ -79,7 +82,9 @@ export default function TodoTable({
                 aria-label={`Open ${todo.title}`}
               >
                 {visibleColumns.has("code") && (
-                  <td className="todo-table-code">{todo.code || "—"}</td>
+                  <td className="todo-table-code">
+                    {todo.code ? <TicketCode code={todo.code} variant="row" /> : "—"}
+                  </td>
                 )}
                 <td className="todo-table-title">
                   <span className="todo-table-title-text">
@@ -95,24 +100,13 @@ export default function TodoTable({
                 </td>
                 {visibleColumns.has("status") && (
                   <td className="todo-table-status-cell">
-                    <label className={`todo-table-status ${hueClass}`}>
-                      <span className="hue-dot" aria-hidden="true" />
-                      <select
-                        value={todo.statusId}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          onMove(todo.id, e.target.value);
-                        }}
-                        aria-label={`Status for ${todo.title}`}
-                      >
-                        {statuses.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <StatusDropdown
+                      statuses={statuses}
+                      value={todo.statusId}
+                      label={statusName}
+                      ariaLabel={`Status for ${todo.title}`}
+                      onChange={(statusId) => onMove(todo.id, statusId)}
+                    />
                   </td>
                 )}
                 {visibleFields.map((field) => (
@@ -144,7 +138,7 @@ export default function TodoTable({
                     aria-label={`Move ${todo.title} to trash`}
                     title="Move to trash"
                   >
-                    <Trash2 className="h-3.5 w-3.5" strokeWidth={2} aria-hidden="true" />
+                    <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
                   </button>
                 </td>
               </tr>
