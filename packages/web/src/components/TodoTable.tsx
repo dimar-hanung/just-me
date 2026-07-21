@@ -32,12 +32,7 @@ export default function TodoTable({
 }: TodoTableProps) {
   const statusById = useMemo(() => new Map(statuses.map((s) => [s.id, s])), [statuses]);
 
-  const sortedTodos = useMemo(
-    () => [...todos].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-    [todos],
-  );
-
-  if (sortedTodos.length === 0) {
+  if (todos.length === 0) {
     return <p className="text-subtle text-sm">No todos yet. Add one to get started.</p>;
   }
 
@@ -62,7 +57,7 @@ export default function TodoTable({
           </tr>
         </thead>
         <tbody>
-          {sortedTodos.map((todo) => {
+          {todos.map((todo) => {
             const status = statusById.get(todo.statusId);
             const statusName = status?.name ?? todo.statusName ?? "Unknown";
             const statusIndex = status ? statuses.indexOf(status) : 0;

@@ -1,6 +1,6 @@
-import { startServer, DEFAULT_API_PORT } from "./app.js";
+import { startServer, DEFAULT_API_PORT, DEFAULT_DEV_API_PORT } from "./app.js";
 
-const port = Number(process.env.PORT ?? DEFAULT_API_PORT);
+const port = Number(process.env.PORT ?? process.env.JUST_ME_DEV_API_PORT ?? DEFAULT_DEV_API_PORT);
 startServer(port)
   .then(() => {
     console.log(`Just Me API listening on http://127.0.0.1:${port}`);

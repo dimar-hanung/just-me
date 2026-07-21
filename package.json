@@ -2,9 +2,9 @@
   "name": "just-me",
   "private": true,
   "scripts": {
-    "dev": "pnpm --parallel --filter @just-me/api --filter @just-me/web dev",
-    "dev:api": "pnpm --filter @just-me/api dev",
-    "dev:web": "pnpm --filter @just-me/web dev",
+    "dev": "JUST_ME_DEV_API_PORT=7842 pnpm --parallel --filter @just-me/api --filter @just-me/web dev",
+    "dev:api": "JUST_ME_DEV_API_PORT=7842 pnpm --filter @just-me/api dev",
+    "dev:web": "pnpm dev",
     "dev:desktop": "pnpm --filter @just-me/desktop dev",
     "dev:mcp": "pnpm --filter @just-me/mcp dev",
     "build": "pnpm --filter @just-me/core build && pnpm --filter @just-me/api build && pnpm --filter @just-me/web build && pnpm --filter @just-me/mcp build",

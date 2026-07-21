@@ -1,3 +1,3 @@
-import { app, startServer, DEFAULT_API_PORT, type ApiServer } from "./app.js";
+import { app, startServer, DEFAULT_API_PORT, DEFAULT_DEV_API_PORT, type ApiServer } from "./app.js";
 
-export { app, startServer, DEFAULT_API_PORT, type ApiServer };
+export { app, startServer, DEFAULT_API_PORT, DEFAULT_DEV_API_PORT, type ApiServer };

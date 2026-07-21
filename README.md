@@ -24,23 +24,27 @@ Start API and web together (recommended):
 pnpm dev
 ```
 
+(`pnpm dev:web` runs the same — API + web in one terminal.)
+
 Or use two terminals:
 
-Terminal 1 — API (required for `/api` routes):
+Terminal 1 — API:
 
 ```bash
 pnpm dev:api
 ```
 
-Terminal 2 — Web with hot reload (proxies `/api` to port 7841):
+Terminal 2 — Web with hot reload (proxies `/api` to dev port **7842**):
 
 ```bash
-pnpm dev:web
+pnpm --filter @just-me/web dev
 ```
 
 Open http://localhost:5173
 
-If onboarding or API calls return 500, check that the API terminal is running on `127.0.0.1:7841`.
+Dev API runs on `127.0.0.1:7842` so it does not conflict with the desktop app on **7841**. Override with `JUST_ME_DEV_API_PORT` in `.env`.
+
+If onboarding or API calls return 500, check that the API terminal is running on `127.0.0.1:7842`.
 
 For production-style web serving:
 

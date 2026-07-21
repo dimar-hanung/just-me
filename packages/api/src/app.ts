@@ -23,6 +23,7 @@ import {
   deleteFieldOption,
   listTodos,
   listTrash,
+  getTodo,
   addTodo,
   updateTodo,
   deleteTodo,
@@ -42,9 +43,22 @@ import { readFile } from "node:fs/promises";
 
 type Variables = { db: DbContext };
 
+export const DEFAULT_API_PORT = 7841;
+export const DEFAULT_DEV_API_PORT = 7842;
+
 const app = new Hono<{ Variables: Variables }>();
 
-const GOOGLE_REDIRECT_URI = "http://127.0.0.1:7841/api/onboarding/google/callback";
+function resolveApiPort(): number {
+  const fromEnv = process.env.PORT ?? process.env.JUST_ME_DEV_API_PORT;
+  if (fromEnv) {
+    return Number(fromEnv);
+  }
+  return DEFAULT_API_PORT;
+}
+
+function getGoogleRedirectUri(): string {
+  return `http://127.0.0.1:${resolveApiPort()}/api/onboarding/google/callback`;
+}
 
 app.get("/api/health", async (c) => {
   const config = await loadConfig();
@@ -118,7 +132,7 @@ app.put("/api/onboarding/storage", async (c) => {
 app.get("/api/onboarding/google/auth-url", async (c) => {
   const config = await loadConfig();
   try {
-    const url = getGoogleAuthUrl(config, GOOGLE_REDIRECT_URI);
+    const url = getGoogleAuthUrl(config, getGoogleRedirectUri());
     return c.json({ url });
   } catch (error) {
     const message = error instanceof Error ? error.message : "OAuth not configured";
@@ -133,7 +147,7 @@ app.get("/api/onboarding/google/callback", async (c) => {
   }
   const config = await loadConfig();
   try {
-    const updated = await exchangeGoogleCode(config, code, GOOGLE_REDIRECT_URI);
+    const updated = await exchangeGoogleCode(config, code, getGoogleRedirectUri());
     const folderBackup = updated.backup ?? {};
     await saveConfig({ ...updated, backup: folderBackup });
     return c.redirect("/onboarding?drive=connected");
@@ -148,7 +162,7 @@ app.post("/api/onboarding/google/exchange", async (c) => {
   const config = await loadConfig();
   if (!body.code) return c.json({ error: "code is required" }, 400);
   try {
-    const updated = await exchangeGoogleCode(config, body.code, GOOGLE_REDIRECT_URI);
+    const updated = await exchangeGoogleCode(config, body.code, getGoogleRedirectUri());
     await saveConfig(updated);
     return c.json({ ok: true, driveConnected: true });
   } catch (error) {
@@ -340,6 +354,21 @@ api.get("/todos", withDb, async (c) => {
   const { client } = c.get("db");
   const statusId = c.req.query("status_id") ?? undefined;
   const code = c.req.query("code") ?? undefined;
+  const limitRaw = c.req.query("limit");
+  const offsetRaw = c.req.query("offset");
+
+  if (limitRaw !== undefined) {
+    const limit = Number(limitRaw);
+    const offset = offsetRaw !== undefined ? Number(offsetRaw) : 0;
+    if (!Number.isInteger(limit) || limit <= 0) {
+      return c.json({ error: "limit must be a positive integer" }, 400);
+    }
+    if (!Number.isInteger(offset) || offset < 0) {
+      return c.json({ error: "offset must be a non-negative integer" }, 400);
+    }
+    return c.json(await listTodos(client, { statusId, code, limit, offset }));
+  }
+
   return c.json(await listTodos(client, { statusId, code }));
 });
 
@@ -352,6 +381,15 @@ api.delete("/todos/trash", withDb, async (c) => {
   const { client } = c.get("db");
   const deleted = await emptyTrash(client);
   return c.json({ ok: true, deleted });
+});
+
+api.get("/todos/:id", withDb, async (c) => {
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: "id is required" }, 400);
+  const { client } = c.get("db");
+  const todo = await getTodo(client, id);
+  if (!todo) return c.json({ error: "Not found" }, 404);
+  return c.json(todo);
 });
 
 api.post("/todos", withDb, async (c) => {
@@ -477,8 +515,6 @@ app.get("*", async (c) => {
 });
 
 export { app };
-
-export const DEFAULT_API_PORT = 7841;
 
 export type ApiServer = {
   port: number;

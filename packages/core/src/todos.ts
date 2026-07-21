@@ -47,23 +47,70 @@ async function attachFieldValues(client: Client, todos: Todo[]): Promise<Todo[]>
 export type ListTodosFilter = {
   statusId?: string;
   code?: string;
+  limit?: number;
+  offset?: number;
 };
 
-export async function listTodos(client: Client, filter: ListTodosFilter = {}): Promise<Todo[]> {
-  let sql = `${TODO_SELECT} WHERE t.deleted_at IS NULL`;
+export type ListTodosResult = {
+  todos: Todo[];
+  total: number;
+  hasMore: boolean;
+};
+
+function buildListTodosWhere(filter: ListTodosFilter): { where: string; args: (string | number)[] } {
+  let where = " WHERE t.deleted_at IS NULL";
   const args: (string | number)[] = [];
 
   if (filter.statusId) {
-    sql += " AND t.status_id = ?";
+    where += " AND t.status_id = ?";
     args.push(filter.statusId);
   }
   if (filter.code) {
-    sql += " AND UPPER(t.code) = ?";
+    where += " AND UPPER(t.code) = ?";
     args.push(filter.code.trim().toUpperCase());
   }
 
-  sql += " ORDER BY t.created_at DESC";
-  const result = await client.execute({ sql, args });
+  return { where, args };
+}
+
+const LIST_TODOS_ORDER = " ORDER BY t.updated_at DESC, t.id DESC";
+
+export async function listTodos(
+  client: Client,
+  filter: ListTodosFilter & { limit: number },
+): Promise<ListTodosResult>;
+export async function listTodos(client: Client, filter?: ListTodosFilter): Promise<Todo[]>;
+export async function listTodos(
+  client: Client,
+  filter: ListTodosFilter = {},
+): Promise<Todo[] | ListTodosResult> {
+  const { where, args } = buildListTodosWhere(filter);
+
+  if (filter.limit !== undefined) {
+    const offset = filter.offset ?? 0;
+    const countResult = await client.execute({
+      sql: `SELECT COUNT(*) AS total FROM todos t${where}`,
+      args,
+    });
+    const total = Number(countResult.rows[0]?.total ?? 0);
+
+    const result = await client.execute({
+      sql: `${TODO_SELECT}${where}${LIST_TODOS_ORDER} LIMIT ? OFFSET ?`,
+      args: [...args, filter.limit, offset],
+    });
+    const todos = result.rows.map((row) => rowToTodo(row as Record<string, unknown>));
+    const withFields = await attachFieldValues(client, todos);
+    return {
+      todos: withFields,
+      total,
+      hasMore: offset + withFields.length < total,
+    };
+  }
+
+  const result = await client.execute({
+    sql: `${TODO_SELECT}${where}${LIST_TODOS_ORDER}`,
+    args,
+  });
   const todos = result.rows.map((row) => rowToTodo(row as Record<string, unknown>));
   return attachFieldValues(client, todos);
 }

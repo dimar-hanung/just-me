@@ -9,6 +9,7 @@ import {
 import { FormEvent, useEffect, useState } from "react";
 import { api, type DriveBackup, type Field, type FieldType, type Status } from "../api";
 import { fieldTypeLabel } from "../components/FieldValueEditors";
+import HealthCheckSection from "../components/HealthCheckSection";
 import { getStatusHueClass } from "../status-hue";
 
 const FIELD_TYPES: FieldType[] = ["tag_multi", "tag_single", "text"];
@@ -207,6 +208,8 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8">
+      <HealthCheckSection />
+
       <section className="space-y-3">
         <h2 className="text-lg font-medium">Statuses</h2>
         <form onSubmit={handleAddStatus} className="flex gap-2">

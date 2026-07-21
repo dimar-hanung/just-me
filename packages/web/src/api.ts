@@ -39,6 +39,12 @@ export type Todo = {
   deletedAt: string | null;
 };
 
+export type ListTodosPage = {
+  todos: Todo[];
+  total: number;
+  hasMore: boolean;
+};
+
 export type OnboardingState = {
   complete: boolean;
   storageMode: string | null;
@@ -52,6 +58,35 @@ export type DriveBackup = {
   createdTime: string;
 };
 
+export type HealthResponse = {
+  app: "just-me";
+  ok: boolean;
+  onboardingComplete: boolean;
+  storage: "local" | "turso" | null;
+  driveConnected?: boolean;
+  error?: string;
+};
+
+async function fetchHealth(): Promise<HealthResponse> {
+  let res: Response;
+  try {
+    res = await fetch("/api/health", {
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch {
+    throw new Error(
+      "Cannot reach the API server. Start it with `pnpm dev:api` (port 7842) or run `pnpm dev` to start API + web together.",
+    );
+  }
+
+  const data = await res.json().catch(() => null);
+  if (!data || typeof data !== "object" || (data as HealthResponse).app !== "just-me") {
+    throw new Error("Invalid health response from API.");
+  }
+
+  return data as HealthResponse;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -61,7 +96,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new Error(
-      "Cannot reach the API server. Start it with `pnpm dev:api` (or run `pnpm dev` to start API + web together).",
+      "Cannot reach the API server. Start it with `pnpm dev:api` (port 7842) or run `pnpm dev` to start API + web together.",
     );
   }
 
@@ -69,7 +104,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     if (res.status >= 500 && !data.error) {
       throw new Error(
-        "API server error. Ensure `pnpm dev:api` is running on port 7841, then try again.",
+        "API server error. Ensure `pnpm dev:api` is running (dev default port 7842), then try again.",
       );
     }
     throw new Error(data.error ?? `Request failed (${res.status})`);
@@ -77,8 +112,37 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
+type ListTodosParams = {
+  statusId?: string;
+  code?: string;
+  limit?: number;
+  offset?: number;
+};
+
+function buildTodosQuery(params?: ListTodosParams): string {
+  const query = new URLSearchParams();
+  if (params?.statusId) query.set("status_id", params.statusId);
+  if (params?.code) query.set("code", params.code);
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  if (params?.offset !== undefined) query.set("offset", String(params.offset));
+  const qs = query.toString();
+  return qs ? `?${qs}` : "";
+}
+
+async function listTodos(
+  params: ListTodosParams & { limit: number },
+): Promise<ListTodosPage>;
+async function listTodos(params?: Omit<ListTodosParams, "limit" | "offset">): Promise<Todo[]>;
+async function listTodos(params?: ListTodosParams): Promise<Todo[] | ListTodosPage> {
+  const path = `/api/todos${buildTodosQuery(params)}`;
+  if (params?.limit !== undefined) {
+    return request<ListTodosPage>(path);
+  }
+  return request<Todo[]>(path);
+}
+
 export const api = {
-  health: () => request<{ ok: boolean; onboardingComplete: boolean }>("/api/health"),
+  health: fetchHealth,
   onboarding: () => request<OnboardingState>("/api/onboarding"),
   setStorage: (body: Record<string, unknown>) =>
     request<{ ok: boolean }>("/api/onboarding/storage", { method: "PUT", body: JSON.stringify(body) }),
@@ -133,13 +197,8 @@ export const api = {
     request<{ ok: boolean }>(`/api/fields/${fieldId}/options/${optionId}`, {
       method: "DELETE",
     }),
-  listTodos: (params?: { statusId?: string; code?: string }) => {
-    const query = new URLSearchParams();
-    if (params?.statusId) query.set("status_id", params.statusId);
-    if (params?.code) query.set("code", params.code);
-    const qs = query.toString();
-    return request<Todo[]>(`/api/todos${qs ? `?${qs}` : ""}`);
-  },
+  listTodos,
+  getTodo: (id: string) => request<Todo>(`/api/todos/${id}`),
   addTodo: (body: {
     title: string;
     content?: string;

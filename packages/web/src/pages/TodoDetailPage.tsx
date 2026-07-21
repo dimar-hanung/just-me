@@ -107,9 +107,8 @@ export default function TodoDetailPage() {
 
     setLoading(true);
     setError("");
-    Promise.all([api.listTodos(), api.listFields()])
-      .then(([list, fieldList]) => {
-        const found = list.find((t) => t.id === id);
+    Promise.all([api.getTodo(id), api.listFields()])
+      .then(([found, fieldList]) => {
         if (!found) {
           navigate("/", { replace: true });
           return;
